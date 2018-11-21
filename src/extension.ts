@@ -3,7 +3,7 @@
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 import { get_sections } from "./code-quality/sections";
-import { get_functions } from './code-quality/code-validation';
+import { get_functions, MarkerResult } from './code-quality/code-validation';
 
 let errorDecorationType : vscode.TextEditorDecorationType;
 let warningDecorationType : vscode.TextEditorDecorationType;
@@ -94,6 +94,12 @@ function updateDecorations() {
     const text = activeEditor.document.getText();
     let sections = get_sections(text);
 
+    console.log("Sections.meta: " + (sections.meta !== null));
+    console.log("Sections.comments: " + (sections.comments !== null));
+    console.log("Sections.awk: " + (sections.awk !== null));
+    console.log("Sections.json: " + (sections.json !== null));
+    console.log("Sections.xml: " + (sections.xml !== null));
+
     let quality_functions = get_functions();
     const warnings : vscode.DecorationOptions[] = [];
     const errors : vscode.DecorationOptions[] = [];
@@ -103,15 +109,15 @@ function updateDecorations() {
         let marks = sect.get_marks(quality_functions, sections);
         if (marks.length > 0) {
             for (let mark of marks) {
-                switch (mark[0]) {
+                switch (mark.severity) {
                     case "warning":
-                        warnings.push(create_decoration(activeEditor, mark[1], mark[2], mark[3]));
+                        warnings.push(create_decoration(activeEditor, mark));
                     break;
                     case "error":
-                        errors.push(create_decoration(activeEditor, mark[1], mark[2], mark[3]));
+                        errors.push(create_decoration(activeEditor, mark));
                     break;
                     case "information":
-                        information.push(create_decoration(activeEditor, mark[1], mark[2], mark[3]));
+                        information.push(create_decoration(activeEditor, mark));
                     break;
                 }
             }
@@ -124,11 +130,17 @@ function updateDecorations() {
     activeEditor.setDecorations(infoDecorationType, information);
 }
 
-function create_decoration(editor : vscode.TextEditor, tooltiptext : string, start : number, end : number) {
+function create_decoration(editor : vscode.TextEditor, marker : MarkerResult) {
+    const start_pos = editor.document.positionAt(marker.start_pos);
+    const end_pos = editor.document.positionAt(marker.end_pos);
+    return { range: new vscode.Range(start_pos, end_pos), hoverMessage: marker.tooltip };
+}
+
+/*function create_decoration(editor : vscode.TextEditor, tooltiptext : string, start : number, end : number) {
     const start_pos = editor.document.positionAt(start);
     const end_pos = editor.document.positionAt(end);
     return { range: new vscode.Range(start_pos, end_pos), hoverMessage: tooltiptext };
-}
+}*/
 
 // this method is called when your extension is deactivated
 export function deactivate() {

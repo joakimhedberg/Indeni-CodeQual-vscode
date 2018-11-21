@@ -1,4 +1,4 @@
-import { CodeValidation } from "./code-validation";
+import { CodeValidation, MarkerResult } from "./code-validation";
 
 export class Section {
     public offset : number;
@@ -12,8 +12,8 @@ export class Section {
         this.apply = apply;
     }
 
-    get_marks(validations : CodeValidation[], sections: Sections) : [string, string, number, number][] {
-        let result : [string, string, number, number][] = [];
+    get_marks(validations : CodeValidation[], sections: Sections) : MarkerResult[] {
+        let result : MarkerResult[] = [];
 
         for (let validation of validations) {
             if (validation.mark === null) {
@@ -36,13 +36,23 @@ export class Section {
                 var marks = validation.mark(this.content, sections);
                 if (marks.length > 0) {
                     for (let mark of marks) {
-                        result.push(this.create_mark(mark, validation.severity, validation.reason, validation.offset_handled));
+                        result.push(this.modify_mark(mark)); // this.create_mark(mark, validation.severity, validation.reason, validation.offset_handled));
                     }
                 }
             }
         }
 
         return result;
+    }
+
+    modify_mark(marker : MarkerResult) : MarkerResult
+    {
+        if (!marker.offset_handled) {
+            marker.start_pos += this.offset;
+            marker.end_pos += this.offset;
+        }
+
+        return marker;
     }
 
     create_mark(range : [number, number], severity : string, tooltip : string, offset_handled : boolean) : [string, string, number, number] {
@@ -100,12 +110,49 @@ export class AwkSection extends Section {
     }
 }
 
+export class YamlSection extends Section {
+    constructor(section : Section) {
+        super(section.offset, section.content, section.apply);
+    }
+
+    public get_metrics() : [string, number][] {
+        let result : [string, number][] = [];
+
+        let regex = /im\.name\":\s*_constant:\s\"([^\"]+)/gm;
+
+        let match;
+        while (match = regex.exec(this.content)) {
+            if (match.length > 1) {
+                result.push([match[1], match.index + match[0].indexOf(match[1])]);
+            }
+        }
+
+        return result;
+    }
+}
+
+export class MetaSection extends Section {
+    includes_resource_data : boolean = false;
+    includes_resource_data_range : ([number, number]) | null = null;
+    constructor(section : Section) {
+        super(section.offset, section.content, section.apply);
+
+        let regex = /^includes_resource_data:\s*true$/m;
+        let match = this.content.match(regex);
+        this.includes_resource_data = match !== null;
+        if (match !== null && match.index !== null && match.length > 0 && match.index !== undefined) {
+            this.includes_resource_data_range = [match.index, match.index + match[0].length];
+        }
+    }
+
+}
+
 export class Sections {
-    public meta : Section | null = null;
+    public meta : MetaSection | null = null;
     public comments : CommentsSection | null = null;
     public awk : AwkSection | null = null;
-    public json : Section | null = null;
-    public xml : Section | null = null;
+    public json : YamlSection | null = null;
+    public xml : YamlSection | null = null;
     public script : Section | null = null;
     public all : Section[] = [];
 }
@@ -120,7 +167,7 @@ export function get_sections(content : string) : Sections {
 
     var meta = get_section(["meta"], /#! META(\n|\r)([.\S\s]+?)#!/g.exec(content));
     if (meta) {
-        result.meta = meta;
+        result.meta = new MetaSection(meta);
         result.all.push(meta);
         sections.push(meta);
     }
@@ -141,14 +188,14 @@ export function get_sections(content : string) : Sections {
 
     var json = get_section(["json", "yaml"], /#! PARSER::JSON.*(\n|\r)([.\S\s]+?)$/g.exec(content));
     if (json) {
-        result.json = json;
+        result.json = new YamlSection(json);
         result.all.push(json);
         sections.push(json);
     }
 
     var xml = get_section(["xml", "yaml"], /#! PARSER::XML.*(\n|\r)([.\S\s]+?)$/g.exec(content));
     if (xml) {
-        result.xml = xml;
+        result.xml = new YamlSection(xml);
         result.all.push(xml);
         sections.push(xml);
     }

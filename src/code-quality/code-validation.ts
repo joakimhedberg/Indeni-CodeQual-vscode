@@ -6,7 +6,7 @@ export class CodeValidation
     reason : string;
     severity : string;
     apply_to_sections : string[];
-    mark : ((content : string, sections : Sections) => [number, number][]) | null;
+    mark : ((content : string, sections : Sections) => MarkerResult[]) | null;
     offset_handled : boolean = false;
     constructor(name : string, reason : string, severity : string, apply_to_sections : string[]) {
         this.name = name;
@@ -21,10 +21,9 @@ export class CodeValidationRegex extends CodeValidation {
     constructor(name : string, reason : string, severity : string, apply_to_sections : string[], regex : RegExp) {
         super(name, reason, severity, apply_to_sections);
 
-        this.mark = (content : string, sections : Sections) : [number, number][] => {
+        this.mark = (content : string, sections : Sections) : MarkerResult[] => {
             let match;
-            let result : [number, number][] = [];
-            console.log("Running " + this.name);
+            let result : MarkerResult[] = [];
             while (match = regex.exec(content)) {
                 if (match.length > 1) {
                     let idx = 0;
@@ -37,21 +36,34 @@ export class CodeValidationRegex extends CodeValidation {
                         idx = match[0].indexOf(match[1], idx);
                         const start_pos = match.index + idx;
                         const end_pos = match.index + idx + match[i].length;
-                        result.push([start_pos, end_pos]);
-                        console.log("Start: " + start_pos + " End: " + end_pos + " Funct: " + this.name + " Capture: " + match[i]);
+                        result.push(new MarkerResult(start_pos, end_pos, this.reason, this.severity, this.offset_handled));
                     }
                 }
             }
-            console.log("\tResults: " + result.length);
             return result;
         };
     }
 }
 
+export class MarkerResult {
+    start_pos : number;
+    end_pos : number;
+    tooltip : string;
+    offset_handled : boolean;
+    severity : string;
+    constructor(start_pos : number, end_pos : number, tooltip : string, severity : string, offset_handled : boolean) {
+        this.start_pos = start_pos;
+        this.end_pos = end_pos;
+        this.tooltip = tooltip;
+        this.offset_handled = offset_handled;
+        this.severity = severity;
+    }
+}
+
 export class SpecialCase {
     search_pattern : RegExp;
-    mark : ((content : string) => [number, number][]) | null = null;
-    constructor(search_pattern : RegExp, mark : ((content : string) => [number, number][]) | null = null) {
+    mark : ((content : string) => MarkerResult[]) | null;
+    constructor(search_pattern : RegExp, mark : ((content : string) => MarkerResult[]) | null = null) {
         this.search_pattern = search_pattern;
         this.mark = mark;
     }
@@ -60,7 +72,7 @@ export class SpecialCase {
         return content.match(this.search_pattern) !== null;
     }
 
-    exec(content : string) : [number, number][] {
+    exec(content : string) : MarkerResult[] {
         if (this.mark !== null) {
             return this.mark(content);
         } else {
@@ -71,12 +83,14 @@ export class SpecialCase {
 
 export class CodeValidationByLine extends CodeValidationRegex {
     special_cases : SpecialCase[];
-    constructor(name : string, reason : string, severity : string, apply_to_sections : string[], line_regex : RegExp, special_cases : SpecialCase[])  {
+    value_exclusion : RegExp[];
+    constructor(name : string, reason : string, severity : string, apply_to_sections : string[], line_regex : RegExp, special_cases : SpecialCase[], value_exclusion : RegExp[] = [])  {
         super(name, reason, severity, apply_to_sections, line_regex);
         this.special_cases = special_cases;
-        console.log("Running code validation line by line");
-        this.mark = (content : string, sections : Sections) : [number, number][] => {
-            let result : [number, number][] = [];
+        this.value_exclusion = value_exclusion;
+
+        this.mark = (content : string, sections : Sections) : MarkerResult[] => {
+            let result : MarkerResult[] = [];
             let lines = content.split("\n");
             let line_offset = 0;
             for (let i = 0; i < lines.length; i++) {
@@ -84,18 +98,17 @@ export class CodeValidationByLine extends CodeValidationRegex {
 
                 let special_result = this.special(line);
                 if (special_result[0]) {
-                    console.log("Special result found for line: ["+ (i + 1) +"] " + line);
                     for (let res of special_result[1]) {
-                        result.push([res[0] + line_offset, res[1] + line_offset]);
+                        result.push(new MarkerResult(res.start_pos + line_offset, res.end_pos + line_offset, this.reason, this.severity, this.offset_handled));
                     }
                 }
                 else {
-                
                     let match;
                     while (match = line_regex.exec(line)) {
                         if (match.length > 1) {
-                            console.log("Match found for line: ["+(i+1)+"] " + match);
-                            result.push([match.index + line_offset, match.index + match[1].length + line_offset]);
+                            if (!this.excluded(match[1])) {
+                                result.push(new MarkerResult(match.index + line_offset, match.index + match[1].length + line_offset, this.reason, this.severity, this.offset_handled));
+                            }
                         }
                     }
                 }
@@ -105,7 +118,17 @@ export class CodeValidationByLine extends CodeValidationRegex {
         };
     }
 
-    special(line : string) : [boolean, [number, number][]] {
+    excluded(line : string) : boolean {
+        for (let exclusion of this.value_exclusion) {
+            if (exclusion.test(line)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    special(line : string) : [boolean, MarkerResult[]] {
         for (let item of this.special_cases) {
             if (item.matches(line)) {
                 return [true, item.exec(line)];
@@ -204,9 +227,9 @@ export function get_functions() {
     // Example of an offending line: 
     //name: sausage-metric
     let valid_scriptname_prefix = new CodeValidation("Valid script name prefix", "Prefixes are important, not only to distinguish which type of device the script is executed on, but also to avoid script name collisions.\nValid prefixes: " + indeni_script_name_prefixes.join(", "), "error", ["meta"]);
-    valid_scriptname_prefix.mark = (content : string, sections : Sections) : [number, number][] => {
-        let result : [number, number][] = [];
-
+    valid_scriptname_prefix.mark = (content : string, sections : Sections) : MarkerResult[] => {
+        let result : MarkerResult[] = [];
+        let reason = "Prefixes are important, not only to distinguish which type of device the script is executed on, but also to avoid script name collisions.\nValid prefixes: " + indeni_script_name_prefixes.join(", ");
         var script_name_row = content.match(/^name:.*$/m);
         if (script_name_row !== null && script_name_row.length === 1) {
             var script_name = script_name_row[0].split(" ")[1];
@@ -216,29 +239,33 @@ export function get_functions() {
                 var re = new RegExp(script_name);
                 var match = re.exec(content);
                 if (match !== null && match.length > 0) {
-                    result.push([match.index, match.index + match[0].length]);
+                    result.push(new MarkerResult(match.index, match.index + match[0].length, reason, "error", false));
                 }
             }
         }
         return result;
     };
 
-    let verify_awk_documentation = new CodeValidation("Undocumented/unused metrics", "The documentation section should have one entry per metric used in the script, and the script should use all documented metrics.", "error", ["script"]);
-    verify_awk_documentation.mark = verify_awk_marker;
-    verify_awk_documentation.offset_handled = true;
+    // This function is a bit special as it it does not only parse and mark, it also compares data from different sections
+    // Verify that metrics are represented both in Write and in the documentation
+    let verify_metric_documentation = new CodeValidation("Undocumented/unused metrics", "The documentation section should have one entry per metric used in the script, and the script should use all documented metrics.", "error", ["script"]);
+    verify_metric_documentation.mark = verify_metric_marker;
+    verify_metric_documentation.offset_handled = true;
 
+    // Metrics should only be written once according to:
+    // https://indeni.atlassian.net/wiki/spaces/IKP/pages/81794466/Code+Review+Pull+Requests
     let only_write_metric_once = new CodeValidation("Metric written more than once", "Each metric should only be written in one place. If the metric has been written more than once this test fails.", "information", ["awk"]);
-    only_write_metric_once.mark = (content : string, sections : Sections) : [number, number][] => {
-        let result : [number, number][] = [];
-        
+    only_write_metric_once.mark = (content : string, sections : Sections) : MarkerResult[] => {
+        let result : MarkerResult[] = [];
+        let reason = "Each metric should only be written in one place. If the metric has been written more than once this test fails.";    
         if (sections.awk !== null) {
             let metrics = sections.awk.get_metrics();
 
             for (let i = 0; i < metrics.length - 1; i++) {
                 for (let j = i + 1; j < metrics.length; j++) {
                     if (metrics[i][0] === metrics[j][0]) {
-                        result.push([metrics[i][1], metrics[i][1] + metrics[i][0].length]);
-                        result.push([metrics[j][1], metrics[j][1] + metrics[j][0].length]);
+                        result.push(new MarkerResult(metrics[i][1], metrics[i][1] + metrics[i][0].length, reason, "information", false));
+                        result.push(new MarkerResult(metrics[j][1], metrics[j][1] + metrics[j][0].length, reason, "information", false));
                     }
                 }
             }
@@ -247,7 +274,32 @@ export function get_functions() {
         return result;
     };
 
+    // A comma should always be followed by a space (unless it is a regexp)
+    // Example of an offending line:
+    // writeDoubleMetric("debug-status",debugtags,"gauge",3600,state)
     let comma_without_space = new CodeValidationByLine("Comma without space", "Comma signs should be followed by a space.\nExceptions to this are regexp and bash scripts.", "error", ["awk"], /(,)[^ \/]/gm, [new SpecialCase(/#/, null)]);
+
+    // Variables should use snake case (snake_case)
+    // Example of an offending line: 
+    //myVariable = 1
+    //my-variable = 1
+    let variable_naming_convention = new CodeValidationByLine("Variable naming", "Most people uses snake case (ie. my_variable) in the repository. This is a suggestion for you to do the same.", "warning", ["awk"], /(?!.*\()(["]?[a-z0-9]+([A-Z0-9][a-z0-9]+["]?)+)/g, [new SpecialCase(/\//), new SpecialCase(/#/)], [/"[^"]+"|(([a-z0-9]+\-)+[a-z0-9]+)/g]);
+
+    // includes_resource_data means that the script is always executed by indeni, even during high CPU usage
+    //includes_resource_data: true
+    let includes_resource_data = new CodeValidation("Resource data validation", "includes_resource_data means that the script is always executed by indeni, even during high CPU usage. It has to be included for scripts using the cpu-usage and/or memory-usage metrics.\nIf this check fails it means that you have specified includes_resource_data, but not used the metrics, or that you have used cpu-usage and/or memory-usage without including includes_resource_data in the meta section.", "error", ["script"]);
+    includes_resource_data.mark = resource_data_mark;
+
+    // This controls if your YAML script has invalid indentation
+    // Since indentation is 4 spaces having a number not divideable 
+    // by 4 would cause an error
+    //
+    // Example of an offending line:
+    //       skip-documentation: true
+    let invalid_yaml_heading_space = new CodeValidation("Invalid YAML white-space", "Since indentation in YAML is 4 spaces having a number not divisible by 4 would cause an error in most cases.", "error", ["yaml"]);
+    invalid_yaml_heading_space.mark = verify_yaml_indent;
+    
+    let comparison_operator_no_space = new CodeValidationByLine("Equals sign without space", "The equals sign and other comparison operators should be followed by a space.\nExceptions to this are regexp and bash scripts.", "error", ["awk"], /([^ =!<>~\n]{1}([=!<>~]{1,2})[^ \n]{1})|(([^ =!<>~\n]{1})([=!<>~]{1,2}))|(([=!<>~]{1,2})[^ =!<>~\n]{1})/gm, [new SpecialCase(/split/), new SpecialCase(/gsub/), new SpecialCase(/sub/), new SpecialCase(/index/), new SpecialCase(/match/), new SpecialCase(/join/), new SpecialCase(/\!\(/), new SpecialCase(/!\//), new SpecialCase(/#/)]);
 
     functions.push(space_before_example);
     functions.push(lowercase_description);
@@ -264,19 +316,78 @@ export function get_functions() {
     functions.push(tilde_without_space);
     functions.push(tilde_without_regexp_notation);
     functions.push(valid_scriptname_prefix);
-    functions.push(verify_awk_documentation);
+    functions.push(verify_metric_documentation);
     functions.push(only_write_metric_once);
     functions.push(comma_without_space);
+    functions.push(variable_naming_convention);
+    functions.push(includes_resource_data);
+    functions.push(invalid_yaml_heading_space);
+    functions.push(comparison_operator_no_space);
     return functions;
 }
 
-function verify_awk_marker(content  : string, sections : Sections) : [number, number][] {
-    let result : [number, number][] = [];
+function verify_yaml_indent(content : string, sections : Sections) : MarkerResult[] {
+    let lines = content.split("\n");
+    let result : MarkerResult[] = [];
+    let line_offset = 0;
+    for (let i = 0; i < lines.length; i++) {
+        let line = lines[i];
+        let regex = /^\s+/;
+        let match = line.match(regex);
+        if (match !== null && match !== undefined)
+        {
+            if (match.index !== undefined) {
+                if (match[0].length % 4) {
+                    result.push(new MarkerResult(match.index + line_offset, match.index + match[0].length + line_offset, "Yaml indent not divisible by 4", "error", false));
+                }
+            }
+        }
+        line_offset += lines[i].length + 1;
+    }
 
-    if (sections.comments !== null && sections.awk !== null)
+    return result;
+}
+
+function resource_data_mark(content : string, sections : Sections) : MarkerResult[] {
+    let result : MarkerResult[] = [];
+    if (sections.meta === null) {
+        // No meta section, opt out
+        return result;
+    }
+    
+    let resource_metrics = ["cpu-usage", "memory-usage"];
+
+    let parser = sections.awk || sections.json || sections.xml;
+
+    if (parser !== undefined && parser !== null) {
+        let metrics = parser.get_metrics();
+
+        let resource_metric_found : boolean = false;
+        for (let metric of metrics) {
+            if (resource_metrics.indexOf(metric[0]) > -1) {
+                resource_metric_found = true;
+                if (!sections.meta.includes_resource_data) {
+                    result.push(new MarkerResult(metric[1] + parser.offset, metric[1] + parser.offset + metric[0].length, "This tag would normally require include_resource_data in the meta section.", "error", true));
+                }
+            }
+        }
+        if (!resource_metric_found && sections.meta.includes_resource_data_range !== null) {
+            let marker = new MarkerResult(sections.meta.includes_resource_data_range[0] + sections.meta.offset, sections.meta.includes_resource_data_range[1] + sections.meta.offset, "Resource data has been used but no metrics that require it seem to exist.", "error", true); 
+            result.push(marker);
+        }
+    }
+
+    return result;
+}
+
+function verify_metric_marker(content  : string, sections : Sections) : MarkerResult[] {
+    let result : MarkerResult[] = [];
+
+    let section = sections.awk || sections.json || sections.xml;
+    if (sections.comments !== null && section !== undefined && section !== null)
     {
         let documented = sections.comments.get_documented_metrics();
-        let used = sections.awk.get_metrics();
+        let used = section.get_metrics();
 
         for (let doc of documented) {
             let exists = false;
@@ -292,7 +403,7 @@ function verify_awk_marker(content  : string, sections : Sections) : [number, nu
             }
 
             if (!exists) {
-                result.push([doc[1] + sections.comments.offset, doc[1] + sections.comments.offset + doc[0].length])
+                result.push(new MarkerResult(doc[1] + sections.comments.offset, doc[1] + sections.comments.offset + doc[0].length, "This metric has been documented but is not used in the code.", "error", false));
             }
         }
 
@@ -308,7 +419,7 @@ function verify_awk_marker(content  : string, sections : Sections) : [number, nu
                 }
             }
             if (!exists) {
-                result.push([use[1] + sections.awk.offset, use[1] + sections.awk.offset + use[0].length]);
+                result.push(new MarkerResult(use[1] + section.offset, use[1] + section.offset + use[0].length, "This metric is used in the code but has not been documented in the meta section!", "error", false));
             }
         }
     }
