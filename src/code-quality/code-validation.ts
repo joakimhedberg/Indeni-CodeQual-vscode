@@ -48,34 +48,71 @@ export class CodeValidationRegex extends CodeValidation {
     }
 }
 
-export class CodeValidationByLine extends CodeValidation {
-    special_cases : [RegExp, (content : string) => [number, number][]];
-    constructor(name : string, reason : string, severity : string, apply_to_sections : string[], line_regex : RegExp, special_cases : [RegExp, (content : string) => [number, number][]])  {
-        super(name, reason, severity, apply_to_sections);
-        this.special_cases = special_cases;
+export class SpecialCase {
+    search_pattern : RegExp;
+    mark : ((content : string) => [number, number][]) | null = null;
+    constructor(search_pattern : RegExp, mark : ((content : string) => [number, number][]) | null = null) {
+        this.search_pattern = search_pattern;
+        this.mark = mark;
+    }
 
+    matches(content : string) {
+        return content.match(this.search_pattern) !== null;
+    }
+
+    exec(content : string) : [number, number][] {
+        if (this.mark !== null) {
+            return this.mark(content);
+        } else {
+            return [];
+        }
+    }
+}
+
+export class CodeValidationByLine extends CodeValidationRegex {
+    special_cases : SpecialCase[];
+    constructor(name : string, reason : string, severity : string, apply_to_sections : string[], line_regex : RegExp, special_cases : SpecialCase[])  {
+        super(name, reason, severity, apply_to_sections, line_regex);
+        this.special_cases = special_cases;
+        console.log("Running code validation line by line");
         this.mark = (content : string, sections : Sections) : [number, number][] => {
             let result : [number, number][] = [];
-
             let lines = content.split("\n");
+            let line_offset = 0;
+            for (let i = 0; i < lines.length; i++) {
+                let line = lines[i];
 
-            let offset = 0;
-            for (let line of lines) {
-                
-                while (match = line_regex.exec(line)) {
-                    if (match.length > 1) {
-                        result.push([match.index + offset, match.index + match[1].length + offset]);
+                let special_result = this.special(line);
+                if (special_result[0]) {
+                    console.log("Special result found for line: ["+ (i + 1) +"] " + line);
+                    for (let res of special_result[1]) {
+                        result.push([res[0] + line_offset, res[1] + line_offset]);
                     }
                 }
-                offset += line.length + 1;
+                else {
+                
+                    let match;
+                    while (match = line_regex.exec(line)) {
+                        if (match.length > 1) {
+                            console.log("Match found for line: ["+(i+1)+"] " + match);
+                            result.push([match.index + line_offset, match.index + match[1].length + line_offset]);
+                        }
+                    }
+                }
+                line_offset += line.length + 1;
             }
-
             return result;
         };
     }
 
-    special(line : string) : (bool, [number, number][]) {
+    special(line : string) : [boolean, [number, number][]] {
+        for (let item of this.special_cases) {
+            if (item.matches(line)) {
+                return [true, item.exec(line)];
+            }
+        }
 
+        return [false, []];
     }
 }
 
@@ -210,7 +247,7 @@ export function get_functions() {
         return result;
     };
 
-    let comma_without_space = new CodeValidationByLine("Comma without space", "Comma signs should be followed by a space.\nExceptions to this are regexp and bash scripts.", "error", ["awk"], /^\s{0,}[^\#]\s{0,}.*(,)[^ \/]+/gm);
+    let comma_without_space = new CodeValidationByLine("Comma without space", "Comma signs should be followed by a space.\nExceptions to this are regexp and bash scripts.", "error", ["awk"], /(,)[^ \/]/gm, [new SpecialCase(/#/, null)]);
 
     functions.push(space_before_example);
     functions.push(lowercase_description);

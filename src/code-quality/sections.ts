@@ -69,7 +69,6 @@ export class CommentsSection extends Section {
         {
             if (match.length > 1)
             {
-                console.log(match);
                 result.push([match[0], match.index]);
             }
         }
@@ -93,7 +92,6 @@ export class AwkSection extends Section {
         {
             if (match.length > 1)
             {
-                console.log(match);
                 result.push([match[1], match[0].indexOf(match[1]) + match.index]);
             }
         }
