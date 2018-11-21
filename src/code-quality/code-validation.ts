@@ -48,9 +48,34 @@ export class CodeValidationRegex extends CodeValidation {
     }
 }
 
-export class CodeValidationLineHandler extends CodeValidation {
-    constructor(name : string, reason : string, severity : string, apply_to_sections : string[]) {
+export class CodeValidationByLine extends CodeValidation {
+    special_cases : [RegExp, (content : string) => [number, number][]];
+    constructor(name : string, reason : string, severity : string, apply_to_sections : string[], line_regex : RegExp, special_cases : [RegExp, (content : string) => [number, number][]])  {
         super(name, reason, severity, apply_to_sections);
+        this.special_cases = special_cases;
+
+        this.mark = (content : string, sections : Sections) : [number, number][] => {
+            let result : [number, number][] = [];
+
+            let lines = content.split("\n");
+
+            let offset = 0;
+            for (let line of lines) {
+                
+                while (match = line_regex.exec(line)) {
+                    if (match.length > 1) {
+                        result.push([match.index + offset, match.index + match[1].length + offset]);
+                    }
+                }
+                offset += line.length + 1;
+            }
+
+            return result;
+        };
+    }
+
+    special(line : string) : (bool, [number, number][]) {
+
     }
 }
 
@@ -165,6 +190,28 @@ export function get_functions() {
     verify_awk_documentation.mark = verify_awk_marker;
     verify_awk_documentation.offset_handled = true;
 
+    let only_write_metric_once = new CodeValidation("Metric written more than once", "Each metric should only be written in one place. If the metric has been written more than once this test fails.", "information", ["awk"]);
+    only_write_metric_once.mark = (content : string, sections : Sections) : [number, number][] => {
+        let result : [number, number][] = [];
+        
+        if (sections.awk !== null) {
+            let metrics = sections.awk.get_metrics();
+
+            for (let i = 0; i < metrics.length - 1; i++) {
+                for (let j = i + 1; j < metrics.length; j++) {
+                    if (metrics[i][0] === metrics[j][0]) {
+                        result.push([metrics[i][1], metrics[i][1] + metrics[i][0].length]);
+                        result.push([metrics[j][1], metrics[j][1] + metrics[j][0].length]);
+                    }
+                }
+            }
+        }
+
+        return result;
+    };
+
+    let comma_without_space = new CodeValidationByLine("Comma without space", "Comma signs should be followed by a space.\nExceptions to this are regexp and bash scripts.", "error", ["awk"], /^\s{0,}[^\#]\s{0,}.*(,)[^ \/]+/gm);
+
     functions.push(space_before_example);
     functions.push(lowercase_description);
     functions.push(monitoring_interval_above_60);
@@ -181,6 +228,8 @@ export function get_functions() {
     functions.push(tilde_without_regexp_notation);
     functions.push(valid_scriptname_prefix);
     functions.push(verify_awk_documentation);
+    functions.push(only_write_metric_once);
+    functions.push(comma_without_space);
     return functions;
 }
 
