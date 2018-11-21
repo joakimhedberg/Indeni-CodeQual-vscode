@@ -142,6 +142,54 @@ export class YamlSection extends Section {
 
         return result;
     }
+
+    public get_awk_sections() : [number, number][] {
+        let result : [number, number][] = [];
+
+        let regex = /:\s+(\|)\w?/g;
+        let match;
+        while (match = regex.exec(this.content)) {
+            if (match.length > 0) {
+                let awk_start = match.index + match.length;
+                let awk_end = this.get_awk_end(this.content, awk_start);
+                result.push([awk_start, awk_end]);
+            }
+        }
+        return result;
+    }
+
+    get_awk_end(content : string, start : number) {
+        let level : number = 0;
+        let in_quote : boolean = false;
+        let in_double_quote : boolean = false;
+        let last_char : string | undefined = undefined;
+        for (let i = start; i < content.length; i++) {
+            let chr = content.charAt(i);
+            switch (chr) {
+                case "\"":
+                    in_double_quote = !in_double_quote;
+                    break;
+                case "'":
+                    in_quote = !in_quote;
+                    break;
+                case "{": 
+                    if (!in_quote && !in_double_quote && last_char !== "\\") {
+                        level++;
+                    }
+                    break;
+                case "}":
+                    if (!in_quote && !in_double_quote && last_char !== "\\") {
+                        level--;
+                        if (level <= 0) {
+                            return i;
+                        }
+                    }
+                    break;
+            }
+            last_char = chr;
+        }
+        return content.length;
+    }
 }
 
 export class MetaSection extends Section {

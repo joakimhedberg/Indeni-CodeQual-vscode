@@ -10,7 +10,7 @@ import { MarkerResult } from './code-quality/code-quality-base/MarkerResult';
 let errorDecorationType : vscode.TextEditorDecorationType;
 let warningDecorationType : vscode.TextEditorDecorationType;
 let infoDecorationType : vscode.TextEditorDecorationType;
-let live_update : boolean = false;
+let live_update : boolean = true;
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
@@ -22,10 +22,10 @@ export function activate(context: vscode.ExtensionContext) {
         overviewRulerColor: 'red',
         overviewRulerLane: vscode.OverviewRulerLane.Right,
         light: {
-            borderColor: 'red',
+            borderColor: { id: 'extension.errorBorderColor'},
         },
         dark: {
-            borderColor: 'red'
+            borderColor: { id: 'extension.errorBorderColor'}
         }
     });
 
@@ -35,10 +35,10 @@ export function activate(context: vscode.ExtensionContext) {
         overviewRulerColor: 'yellow',
         overviewRulerLane: vscode.OverviewRulerLane.Right,
         light: {
-            borderColor: '#a29c37'
+            borderColor: { id: 'extension.warningBorderColor'}
         },
         dark: {
-            borderColor: '#ffff00'
+            borderColor: { id: 'extension.warningBorderColor'}
         }
     });
 
@@ -107,6 +107,14 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(set_language_command);
 }
 
+function is_indeni_script(document : vscode.TextDocument | undefined) {
+    if (document === undefined) {
+        return false;
+    }
+
+    return document.fileName.toLowerCase().endsWith(".ind");
+}
+
 function text_document_changed(change : vscode.TextDocumentChangeEvent) {
     if (live_update) {
         updateDecorations(change.document);
@@ -126,6 +134,11 @@ function setLanguage(document : vscode.TextDocument | undefined) {
     if (!document) {
         return;
     }
+
+    if (!is_indeni_script(document)) {
+        return;
+    }
+
     if (document.uri.fsPath.toLowerCase().endsWith(".ind"))
     {
         const text = document.getText();
@@ -158,6 +171,10 @@ function clearDecorations(editor : vscode.TextEditor | undefined) {
 
 function updateDecorations(document : vscode.TextDocument | undefined) {
     if (!document) {
+        return;
+    }
+
+    if (!is_indeni_script(document)) {
         return;
     }
     

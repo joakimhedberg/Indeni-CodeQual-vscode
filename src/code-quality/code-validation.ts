@@ -2,7 +2,6 @@ import { CodeValidation, CodeValidationByLine, CodeValidationRegex, FunctionSeve
 import { MarkerResult } from "./code-quality-base/MarkerResult";
 import { Sections } from "./code-quality-base/Section";
 import { SpecialCase } from "./code-quality-base/SpecialCase";
-import { print } from "util";
 
 const indeni_script_name_prefixes = ["chkp", "f5", "panos", "nexus", "radware", "junos", "ios", "fortios", "cpembedded", "bluecoat", "linux", "unix"];
 
@@ -218,9 +217,15 @@ function verify_yaml_indent(content : string, sections : Sections) : MarkerResul
     let lines = content.split("\n");
     let result : MarkerResult[] = [];
     let line_offset = 0;
-    //let indexes = get_awk_index(content);
-    //console.log("Awk indexes: ");
-    //console.log(indexes);
+
+    let indexes : [number, number][] = [];
+    if (sections.json !== null){
+        indexes = sections.json.get_awk_sections();
+    }
+    else if (sections.xml !== null) {
+        indexes = sections.xml.get_awk_sections();
+    }
+
     for (let i = 0; i < lines.length; i++) {
         let line = lines[i];
         let regex = /^\s+/;
@@ -228,8 +233,11 @@ function verify_yaml_indent(content : string, sections : Sections) : MarkerResul
         if (match !== null && match !== undefined)
         {
             if (match.index !== undefined) {
-                if (match[0].length % 4) {
-                    result.push(new MarkerResult(match.index + line_offset, match.index + match[0].length + line_offset, "Yaml indent not divisible by 4", FunctionSeverity.error, false));
+                if (!is_within(indexes, match.index + line_offset))
+                {
+                    if (match[0].length % 4 && match[0].length > 0) {
+                        result.push(new MarkerResult(match.index + line_offset, match.index + match[0].length + line_offset, "Yaml indent not divisible by 4", FunctionSeverity.error, false));
+                    }
                 }
             }
         }
@@ -239,46 +247,16 @@ function verify_yaml_indent(content : string, sections : Sections) : MarkerResul
     return result;
 }
 
-function get_awk_index(content : string) : [number, number][] {
-    let result : [number, number][] = [];
-
-    let lines = content.split("\n");
-    let line_offset = 0;
-    let in_awk = false;
-    let awk_start : number | undefined = undefined;
-    let indent = 0;
-    for (let i = 0; i < lines.length; i++) {
-        let line = lines[i];
-        if (/\s+\|\s?$/g.test(line) && !in_awk) {
-            in_awk = true;
+function is_within(indexes : [number, number][], match_index : number) : boolean {
+    for (let index of indexes) {
+        let result = (index[0] <= match_index && match_index <= index[1]);
+        console.log("%d <= %d && %d <= %d = %s", index[0], match_index, match_index, index[1], result);
+        if (result) {
+            return result;
         }
-        else if (in_awk) {
-            for (let c_idx = 0; c_idx = line.length; c_idx++)
-            {
-                let chr = line.charAt(c_idx);
-                console.log("Line " + chr);
-                if (chr === "{")
-                {
-                    if (awk_start === undefined) {
-                        awk_start = line_offset + c_idx;
-                        indent++;
-                    }
-                }
-                else if (chr === "}")
-                {
-                    indent--;
-                    if (indent <= 0 && awk_start !== undefined) {
-                        result.push([awk_start, line_offset + c_idx]);
-                        awk_start = undefined;
-                        in_awk = false;
-                    }
-                }
-            }
-        }
-        line_offset += line.length + 1;
     }
 
-    return result;
+    return false;
 }
 
 function resource_data_mark(content : string, sections : Sections) : MarkerResult[] {

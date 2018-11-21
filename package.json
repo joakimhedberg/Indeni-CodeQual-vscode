@@ -11,10 +11,7 @@
         "Other"
     ],
     "activationEvents": [
-        "onCommand:extension.triggerUpdate",
-        "onCommand:extension.toggleLive",
-        "onCommand:extension.triggerClear",
-        "onCommand:extension.setLanguage"
+        "*"
     ],
     "main": "./out/extension",
     "contributes": {
@@ -34,6 +31,35 @@
             {
                 "command": "extension.setLanguage",
                 "title": "Indeni code quality: Set syntax highlight(awk/yaml)"
+            }
+        ],
+        "colors": [
+            {
+                "id": "extension.warningBorderColor",
+                "description" : "Border color for warnings",
+                "defaults": {
+                    "dark": "#a4a244",
+                    "light": "#ffff00",
+                    "highContrast": "#ffff00"
+                }
+            },
+            {
+                "id": "extension.errorBorderColor",
+                "description": "Border color for errors",
+                "defaults": {
+                    "dark": "#a60004",
+                    "light": "#f1bebf",
+                    "highContrast": "#ff0d13"
+                }
+            },
+            {
+                "id": "extension.informationBorderColor",
+                "description": "Border color for information",
+                "defaults": {
+                    "dark": "#000080",
+                    "light": "#a7a2e8",
+                    "highContrast": "#0000ff"
+                }
             }
         ]
     },
