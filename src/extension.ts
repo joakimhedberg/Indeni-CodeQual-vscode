@@ -3,7 +3,9 @@
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 import { get_sections } from "./code-quality/sections";
-import { get_functions, MarkerResult } from './code-quality/code-validation';
+import { get_functions } from './code-quality/code-validation';
+import { FunctionSeverity } from './code-quality/code-quality-base/CodeValidation';
+import { MarkerResult } from './code-quality/code-quality-base/MarkerResult';
 
 let errorDecorationType : vscode.TextEditorDecorationType;
 let warningDecorationType : vscode.TextEditorDecorationType;
@@ -94,12 +96,6 @@ function updateDecorations() {
     const text = activeEditor.document.getText();
     let sections = get_sections(text);
 
-    console.log("Sections.meta: " + (sections.meta !== null));
-    console.log("Sections.comments: " + (sections.comments !== null));
-    console.log("Sections.awk: " + (sections.awk !== null));
-    console.log("Sections.json: " + (sections.json !== null));
-    console.log("Sections.xml: " + (sections.xml !== null));
-
     let quality_functions = get_functions();
     const warnings : vscode.DecorationOptions[] = [];
     const errors : vscode.DecorationOptions[] = [];
@@ -110,13 +106,13 @@ function updateDecorations() {
         if (marks.length > 0) {
             for (let mark of marks) {
                 switch (mark.severity) {
-                    case "warning":
+                    case FunctionSeverity.warning:
                         warnings.push(create_decoration(activeEditor, mark));
                     break;
-                    case "error":
+                    case FunctionSeverity.error:
                         errors.push(create_decoration(activeEditor, mark));
                     break;
-                    case "information":
+                    case FunctionSeverity.information:
                         information.push(create_decoration(activeEditor, mark));
                     break;
                 }
