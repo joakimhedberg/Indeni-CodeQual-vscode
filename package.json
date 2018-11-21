@@ -11,14 +11,29 @@
         "Other"
     ],
     "activationEvents": [
-        "onCommand:extension.triggerUpdate"
+        "onCommand:extension.triggerUpdate",
+        "onCommand:extension.toggleLive",
+        "onCommand:extension.triggerClear",
+        "onCommand:extension.setLanguage"
     ],
     "main": "./out/extension",
     "contributes": {
         "commands": [
             {
                 "command": "extension.triggerUpdate",
-                "title": "Code quality"
+                "title": "Indeni code quality: Perform code quality"
+            },
+            {
+                "command": "extension.triggerClear",
+                "title": "Indeni code quality: Clear decorations"
+            },
+            {
+                "command": "extension.toggleLive",
+                "title": "Indeni code quality: Toggle live update"
+            },
+            {
+                "command": "extension.setLanguage",
+                "title": "Indeni code quality: Set syntax highlight(awk/yaml)"
             }
         ]
     },

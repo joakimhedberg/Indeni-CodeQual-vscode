@@ -8,7 +8,7 @@ export function get_sections(content : string) : Sections {
     result.script = new Section(0, content, ["script"]);
     result.all.push(result.script);
 
-    var meta = get_section(["meta"], /#! META(\n|\r)([.\S\s]+?)#!/g.exec(content));
+    var meta = get_section(["meta", "yaml"], /#! META(\n|\r)([.\S\s]+?)#!/g.exec(content));
     if (meta) {
         result.meta = new MetaSection(meta);
         result.all.push(meta);

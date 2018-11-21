@@ -2,6 +2,7 @@ import { CodeValidation, CodeValidationByLine, CodeValidationRegex, FunctionSeve
 import { MarkerResult } from "./code-quality-base/MarkerResult";
 import { Sections } from "./code-quality-base/Section";
 import { SpecialCase } from "./code-quality-base/SpecialCase";
+import { print } from "util";
 
 const indeni_script_name_prefixes = ["chkp", "f5", "panos", "nexus", "radware", "junos", "ios", "fortios", "cpembedded", "bluecoat", "linux", "unix"];
 
@@ -23,7 +24,30 @@ export function get_functions() {
     //
     // Example of an offending line:
     // monitoring_interval: 61 minutes
-    let monitoring_interval_above_60 = new CodeValidationRegex("Monitoring interval over 60", "Due to a platform bug we don't support intervals over 1 hour.", FunctionSeverity.error, ["meta"], /([6-9][1-9][0-9]*? minute[s]{0,1})|([2-9][0-9]*? hour[s]{0,1})/gm);
+    let monitoring_interval_above_60 = new CodeValidation("Monitoring interval over 60", "Due to a platform bug we don't support intervals over 1 hour.", FunctionSeverity.error, ["meta"]);
+    monitoring_interval_above_60.mark = (content : string, sections : Sections) : MarkerResult[] => {
+        let result : MarkerResult[] = [];
+        let regex = /([0-9][0-9]*? minute[s]{0,1})|([1-9][1-9]*? hour[s]{0,1})/;
+
+        let match = regex.exec(content);
+        if (match !== null) {
+            if (match.length > 0 && match.index !== undefined) {
+                let items = match[0].split(/\s/);
+                let time : number = +items[0];
+                let unit = items[1];
+                if (unit.indexOf('hour') !== -1) {
+                    time *= 60;
+                }
+
+                if (time > 60) {
+                    result.push(new MarkerResult(match.index, match.index + match[0].length, "Due to a platform bug we do not support intervals over 1 hour.", FunctionSeverity.error, false));
+                }
+            }
+        }
+
+        return result;
+        
+    };
     
     // Tabs should not be used for indentation
     // Example of an offending line:
@@ -160,8 +184,8 @@ export function get_functions() {
     //
     // Example of an offending line:
     //       skip-documentation: true
-    let invalid_yaml_heading_space = new CodeValidation("Invalid YAML white-space", "Since indentation in YAML is 4 spaces having a number not divisible by 4 would cause an error in most cases.", FunctionSeverity.error, ["yaml"]);
-    invalid_yaml_heading_space.mark = verify_yaml_indent;
+    let invalid_yaml_leading_space = new CodeValidation("Invalid YAML white-space", "Since indentation in YAML is 4 spaces having a number not divisible by 4 would cause an error in most cases.", FunctionSeverity.error, ["yaml"]);
+    invalid_yaml_leading_space.mark = verify_yaml_indent;
     
     let comparison_operator_no_space = new CodeValidationByLine("Equals sign without space", "The equals sign and other comparison operators should be followed by a space.\nExceptions to this are regexp and bash scripts.", FunctionSeverity.error, ["awk"], /([^ =!<>~\n]{1}([=!<>~]{1,2})[^ \n]{1})|(([^ =!<>~\n]{1})([=!<>~]{1,2}))|(([=!<>~]{1,2})[^ =!<>~\n]{1})/gm, [new SpecialCase(/split/), new SpecialCase(/gsub/), new SpecialCase(/sub/), new SpecialCase(/index/), new SpecialCase(/match/), new SpecialCase(/join/), new SpecialCase(/\!\(/), new SpecialCase(/!\//), new SpecialCase(/#/)]);
 
@@ -185,7 +209,7 @@ export function get_functions() {
     functions.push(comma_without_space);
     functions.push(variable_naming_convention);
     functions.push(includes_resource_data);
-    functions.push(invalid_yaml_heading_space);
+    functions.push(invalid_yaml_leading_space);
     functions.push(comparison_operator_no_space);
     return functions;
 }
@@ -194,6 +218,9 @@ function verify_yaml_indent(content : string, sections : Sections) : MarkerResul
     let lines = content.split("\n");
     let result : MarkerResult[] = [];
     let line_offset = 0;
+    //let indexes = get_awk_index(content);
+    //console.log("Awk indexes: ");
+    //console.log(indexes);
     for (let i = 0; i < lines.length; i++) {
         let line = lines[i];
         let regex = /^\s+/;
@@ -207,6 +234,48 @@ function verify_yaml_indent(content : string, sections : Sections) : MarkerResul
             }
         }
         line_offset += lines[i].length + 1;
+    }
+
+    return result;
+}
+
+function get_awk_index(content : string) : [number, number][] {
+    let result : [number, number][] = [];
+
+    let lines = content.split("\n");
+    let line_offset = 0;
+    let in_awk = false;
+    let awk_start : number | undefined = undefined;
+    let indent = 0;
+    for (let i = 0; i < lines.length; i++) {
+        let line = lines[i];
+        if (/\s+\|\s?$/g.test(line) && !in_awk) {
+            in_awk = true;
+        }
+        else if (in_awk) {
+            for (let c_idx = 0; c_idx = line.length; c_idx++)
+            {
+                let chr = line.charAt(c_idx);
+                console.log("Line " + chr);
+                if (chr === "{")
+                {
+                    if (awk_start === undefined) {
+                        awk_start = line_offset + c_idx;
+                        indent++;
+                    }
+                }
+                else if (chr === "}")
+                {
+                    indent--;
+                    if (indent <= 0 && awk_start !== undefined) {
+                        result.push([awk_start, line_offset + c_idx]);
+                        awk_start = undefined;
+                        in_awk = false;
+                    }
+                }
+            }
+        }
+        line_offset += line.length + 1;
     }
 
     return result;

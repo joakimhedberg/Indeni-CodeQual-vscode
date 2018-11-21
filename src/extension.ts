@@ -10,7 +10,7 @@ import { MarkerResult } from './code-quality/code-quality-base/MarkerResult';
 let errorDecorationType : vscode.TextEditorDecorationType;
 let warningDecorationType : vscode.TextEditorDecorationType;
 let infoDecorationType : vscode.TextEditorDecorationType;
-let activeEditor : vscode.TextEditor | undefined = undefined;
+let live_update : boolean = false;
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
@@ -55,45 +55,118 @@ export function activate(context: vscode.ExtensionContext) {
         }
     });
 
-    activeEditor = vscode.window.activeTextEditor;
-    /*if (activeEditor) {
-        triggerUpdateDecorations();
-    }
+    vscode.window.showInformationMessage("We are live!");
 
-    vscode.window.onDidChangeActiveTextEditor(editor => 
-        {
-            activeEditor = editor;
-            if (activeEditor)
-            {
-                triggerUpdateDecorations();
-            }
-        }, null, context.subscriptions);
-
-
-    vscode.workspace.onDidChangeTextDocument(event => {
-        if (activeEditor && event.document === activeEditor.document)
-        {
-            triggerUpdateDecorations();
+    vscode.window.onDidChangeActiveTextEditor(text_editor_changed);
+    vscode.workspace.onDidChangeTextDocument(text_document_changed);
+    let trigger_update_command = vscode.commands.registerCommand('extension.triggerUpdate', () => {
+        var editor = vscode.window.activeTextEditor;
+        if (editor !== null && editor !== undefined) {
+            updateDecorations(editor.document); 
         }
-    }, null, context.subscriptions);*/
+    });
 
-    // Use the console to output diagnostic information (console.log) and errors (console.error)
-    // This line of code will only be executed once when your extension is activated
+    let set_language_command = vscode.commands.registerCommand('extension.setLanguage', () => {
+        var editor = vscode.window.activeTextEditor;
+        if (editor !== undefined) {
+            setLanguage(editor.document);
+        }
+    });
 
-    // The command has been defined in the package.json file
-    // Now provide the implementation of the command with  registerCommand
-    // The commandId parameter must match the command field in package.json
-    let disposable = vscode.commands.registerCommand('extension.triggerUpdate', () => { updateDecorations(); });
-    context.subscriptions.push(disposable);
+    let trigger_clear_command = vscode.commands.registerCommand('extension.triggerClear', () => {
+        var editor = vscode.window.activeTextEditor;
+        if (editor !== undefined) {
+            clearDecorations(editor);
+        }
+    });
+
+    let enable_disable_live_command = vscode.commands.registerCommand('extension.toggleLive', () => {
+        live_update = !live_update;
+        var editor = vscode.window.activeTextEditor;
+        if (live_update) {
+            vscode.window.showInformationMessage("Code quality: Live update enabled");
+            if (editor !== undefined)
+            {
+                if (editor.document !== undefined) {
+                    updateDecorations(editor.document);
+                }
+            }
+        }
+        else {
+            vscode.window.showInformationMessage("Code quality: Live update disabled");
+            if (editor !== undefined)
+            {
+                clearDecorations(editor);
+            }
+        }
+    });
+
+    context.subscriptions.push(trigger_clear_command);
+    context.subscriptions.push(trigger_update_command);
+    context.subscriptions.push(enable_disable_live_command);
+    context.subscriptions.push(set_language_command);
 }
 
-function updateDecorations() {
-    activeEditor = vscode.window.activeTextEditor;
-    if (!activeEditor) {
+function text_document_changed(change : vscode.TextDocumentChangeEvent) {
+    if (live_update) {
+        updateDecorations(change.document);
+    }
+}
+
+function text_editor_changed(editor : vscode.TextEditor | undefined) {
+    if (editor !== undefined)
+    {
+        if (live_update) {
+            updateDecorations(editor.document);
+        }
+    }
+}
+
+function setLanguage(document : vscode.TextDocument | undefined) {
+    if (!document) {
+        return;
+    }
+    if (document.uri.fsPath.toLowerCase().endsWith(".ind"))
+    {
+        const text = document.getText();
+        let sections = get_sections(text);
+
+        if (sections.awk !== null) {
+            if (document.languageId !== "awk")
+            {
+                vscode.languages.setTextDocumentLanguage(document, "awk");
+            }
+        }
+        else if (sections.xml !== null || sections.json !== null) {
+            if (document.languageId !== "yaml") {
+                vscode.languages.setTextDocumentLanguage(document, "yaml");
+            }
+        }
+    }
+}
+
+function clearDecorations(editor : vscode.TextEditor | undefined) {
+    if (!editor)
+    {
+        return;
+    }
+
+    editor.setDecorations(warningDecorationType, []);
+    editor.setDecorations(errorDecorationType, []);
+    editor.setDecorations(infoDecorationType, []);
+}
+
+function updateDecorations(document : vscode.TextDocument | undefined) {
+    if (!document) {
         return;
     }
     
-    const text = activeEditor.document.getText();
+    let editor = vscode.window.activeTextEditor;
+    if (editor === null || editor === undefined) {
+        return;
+    }
+
+    const text = document.getText();
     let sections = get_sections(text);
 
     let quality_functions = get_functions();
@@ -107,13 +180,13 @@ function updateDecorations() {
             for (let mark of marks) {
                 switch (mark.severity) {
                     case FunctionSeverity.warning:
-                        warnings.push(create_decoration(activeEditor, mark));
+                        warnings.push(create_decoration(editor, mark));
                     break;
                     case FunctionSeverity.error:
-                        errors.push(create_decoration(activeEditor, mark));
+                        errors.push(create_decoration(editor, mark));
                     break;
                     case FunctionSeverity.information:
-                        information.push(create_decoration(activeEditor, mark));
+                        information.push(create_decoration(editor, mark));
                     break;
                 }
             }
@@ -121,9 +194,9 @@ function updateDecorations() {
     }
 
 
-    activeEditor.setDecorations(warningDecorationType, warnings);
-    activeEditor.setDecorations(errorDecorationType, errors);
-    activeEditor.setDecorations(infoDecorationType, information);
+    editor.setDecorations(warningDecorationType, warnings);
+    editor.setDecorations(errorDecorationType, errors);
+    editor.setDecorations(infoDecorationType, information);
 }
 
 function create_decoration(editor : vscode.TextEditor, marker : MarkerResult) {
@@ -132,12 +205,9 @@ function create_decoration(editor : vscode.TextEditor, marker : MarkerResult) {
     return { range: new vscode.Range(start_pos, end_pos), hoverMessage: marker.tooltip };
 }
 
-/*function create_decoration(editor : vscode.TextEditor, tooltiptext : string, start : number, end : number) {
-    const start_pos = editor.document.positionAt(start);
-    const end_pos = editor.document.positionAt(end);
-    return { range: new vscode.Range(start_pos, end_pos), hoverMessage: tooltiptext };
-}*/
-
 // this method is called when your extension is deactivated
 export function deactivate() {
+    errorDecorationType.dispose();
+    warningDecorationType.dispose();
+    infoDecorationType.dispose();
 }
