@@ -1,0 +1,75 @@
+.tooltip {
+    position: relative;
+    display: inline-block;
+}
+
+.tooltip .tooltiptext {
+    visibility: hidden;
+    background-color: black;
+    border-color: white;
+    color: #fff;
+    text-align: center;
+    padding: 5px 0;
+    border-radius: 6px;
+    width: auto;
+    position: absolute;
+    z-index: 1;
+}
+
+.title {
+    font-size: +2em;
+    font-weight: bold;
+}
+
+.title_text {
+    font-size: +1em;
+    font-weight: bold;
+}
+
+.tooltip:hover .tooltiptext {
+    visibility: visible;
+}
+
+table {
+    width: 100%;
+}
+
+table th {
+    margin: 4px;
+    border: solid 1px white;
+    background: #c0c0c0;
+    color: black;
+    font-weight: bold;
+}
+
+.metric_table th {
+    background: black;
+    border: solid 1px white;
+    color: lightgray;
+}
+
+table td {
+    border: dashed 1px darkgray;
+    padding: 3px;
+}
+
+#expected_metrics_table th {
+    background: darkgreen;
+}
+
+#got_metrics_table th {
+    background: #4f0000;
+}
+
+#delta_metrics_table th {
+    background: #626200;
+}
+
+#error_output_div {
+    background: maroon;
+    border: solid 1px #ffffff;
+    padding: 4px;
+    color: white;
+    font-weight: bold;
+    visibility: hidden;
+}

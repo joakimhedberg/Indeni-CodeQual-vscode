@@ -1,0 +1,75 @@
+th {
+    margin: 10px;
+    padding: 4px;
+    font-size: 16px;
+}
+
+table {
+    vertical-align: middle;
+    empty-cells: hide;
+}
+
+ul {
+    margin: 0;
+    padding: 0;
+}
+
+.clickable {
+    cursor: pointer;
+}
+
+.clickable:hover {
+    border: solid 1px blue;
+    text-decoration: blue;
+    color: green;
+}
+
+ul li {
+    display: inline-block;
+    color: black;
+    padding: 3px;
+    margin: 2px;
+    background: darkgray;
+    border: 1px solid #000;
+    border-radius: 10px;
+    font-weight: bold;
+}
+
+#noncompliant_table th {
+    background-color: darkred;
+}
+
+#compliant_table th {
+    background-color: darkgreen;
+}
+
+#details_table {
+    font-weight: bold;
+}
+
+#details_table th {
+    background-color: #044a47;
+    font-weight: bold;
+    color: white;
+}
+
+td {
+    border: solid 1px lightgray;
+    padding: 4px;
+    margin: 3px;
+}
+
+.error {
+    color: red;
+    margin: 3px;
+}
+
+.warning {
+    color: yellow;
+    margin: 3px;
+}
+
+.information {
+    color: blue;
+    margin: 3px;
+}

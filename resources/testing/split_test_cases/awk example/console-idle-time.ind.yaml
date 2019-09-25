@@ -1,0 +1,38 @@
+name: linux-console_idle_time
+description: Shows idle users logged in
+type: monitoring
+monitoring_interval: 5 minutes
+requires:
+    linux-based: 'true'
+comments:
+    logged-in-users:
+        why: |
+            Terminals that are logged in but forgotten can be a security risk, especially if it is on the console.
+        how: |
+            By using the build-in "w" command, the status of all users is retrieved.
+        without-indeni: |
+            An administrator could login and manually run the command.
+        can-with-snmp: false
+        can-with-syslog: false
+        vendor-provided-management: This is only accessible from the command line
+            interface.
+    
+    real-servers-limit:
+        why: |
+            The alteon can handle a set number of real servers as part of its configuration. This is determined by the CUs allocated to the Alteon, whether predefined by the hardware, or allocation for the VM. Knowing when real server limit is nearing will be crucial for capacity planning
+        how: |
+            This script runs the "/config/switchCapRealSersCurrEnt" through the Alteon API gateway.
+        without-indeni: |
+            An administrator would need to log in to the device and run a CLI command or run the API command "/config/switchCapRealSersCurrEnt".
+        can-with-snmp: true
+        can-with-syslog: false
+        vendor-provided-management: Can be done through Management GUI (Vision or
+            Alteon VX).
+steps:
+-   run:
+        type: SSH
+        command: ${nice-path} -n 15  utmpdump /var/run/utmp && echo "start w" && ${nice-path}
+            -n 15 w |egrep "tty|pts"
+    parse:
+        type: AWK
+        file: console-idle-time.parser.1.awk

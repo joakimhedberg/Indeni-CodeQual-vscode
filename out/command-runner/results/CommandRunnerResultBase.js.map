@@ -1,0 +1,1 @@
+{"version":3,"file":"CommandRunnerResultBase.js","sourceRoot":"","sources":["../../../src/command-runner/results/CommandRunnerResultBase.ts"],"names":[],"mappings":";;AAAA;IAGI,YAAmB,QAAiB;QAChC,IAAI,CAAC,QAAQ,GAAG,QAAQ,CAAC;QAEzB,IAAI,CAAC,iBAAiB,GAAG,QAAQ,CAAC,OAAO,CAAC,iBAAiB,EAAE,EAAE,CAAC,CAAC;IACrE,CAAC;CACJ;AARD,0DAQC"}

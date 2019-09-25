@@ -1,0 +1,66 @@
+{
+	"Write double metric": {
+		"scope": "awk",
+		"prefix": "write",
+		"body": [
+		  "writeDoubleMetric(${1:imName}, ${2|tags,null|}, \"${3|gauge,counter|}\", ${4:value}, \"false\")"
+		],
+		"description": "Write double metric"
+	},
+	"Write double metric (with live config)": {
+		"scope": "awk",
+		"prefix": "write",
+		"body": [
+		  "writeDoubleMetric(${1:imName}, ${2|tags,null|}, \"${3|gauge,counter|}\", ${4:value}, \"true\", \"${5:displayName}\", \"${6|bytes,kbytes,kilobytes,percentage,duration,state,boolean,number,date|}\", \"${7:identityTags}\")"
+		],
+		"description": "Write double metric"
+	},
+	"Write complex metric string (with live config)": {
+		"scope": "awk",
+		"prefix": "write",
+		"body": [
+			"writeComplexMetricString(${1:imName}, ${2|tags,null|}, ${3:string_value}, \"true\", \"${4:displayName}\")"
+		],
+		"description": "Write complex metric string with live config"
+	},
+	"Write complex metric string": {
+		"scope": "awk",
+		"prefix": "write",
+		"body": [
+			"writeComplexMetricString(${1:imName}, ${2|tags,null|}, ${3:string_value}, \"false\")"
+		],
+		"description": "Write complex metric string"
+	},
+	"Write complex metric object array (with live config)": {
+		"scope": "awk",
+		"prefix": "write",
+		"body": [
+			"writeComplexMetricObjectArray(${1:imName}, ${2|tags,null|}, ${3:array_value}, \"true\", \"${4:displayName}\")"
+		],
+		"description": "Write complex metric object array"
+	},
+	"Write complex metric object array": {
+		"scope": "awk",
+		"prefix": "write",
+		"body": [
+			"writeComplexMetricObjectArray(${1:imName}, ${2|tags,null|}, ${3:array_value}, \"false\")"
+		],
+		"description": "Write complex metric object array"
+	},
+	"Write debug": {
+		"scope": "awk",
+		"prefix": "write",
+		"body": [
+			"writeDebug(\"${1:string}\")"
+		],
+		"description": "Write debug message"
+	},
+	"Write tag": {
+		"scope": "awk",
+		"prefix": "write",
+		"body": [
+			"writeTag(\"${1:name}\", ${2:value})"
+		],
+		"description": "Write tag"
+	}
+}

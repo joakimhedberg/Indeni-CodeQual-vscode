@@ -1,0 +1,335 @@
+#! META
+name: chkp-ldap-fingerprint-check
+description: Check if the stored LDAP fingerprint is the same as the actual one for Identity Awareness
+type: monitoring
+monitoring_interval: 10 minutes
+requires:
+    vendor: "checkpoint"
+    role-firewall: "true"
+
+#! COMMENTS
+ldap-fingerprint-mismatch:
+    why: |
+        When a LDAP SSL connection is established from a Check Point gateway to a Active Directory server the certificate fingerprint is stored. If the certificate is updated on the server the fingerprint will not match, and connection to the Active Directory server will be lost. This means that no new identities for Identity Awareness can be collected.
+    how: |
+        By comparing the stored fingerprint with the actual current fingerprint, indeni can determine if they do not match.
+    without-indeni: |
+        Detecting it is hard. An administrator might notice that no new identities are collected, but knowing that it is the fingerprint that do not match is not easy. To solve the issue the administrator would need to login to SmartDashboard and manually refresh the certificate.
+    can-with-snmp: false
+    can-with-syslog: false
+    vendor-provided-management: |
+        Fingerprint is refreshed via the SmartDashboard.
+
+#! REMOTE::SSH
+nice -n 15 cat $FWDIR/conf/objects.C
+
+#! PARSER::AWK
+
+# Fingerprint is an MD5 sum of the Active Directory LDAP SSL certificate in DER format.
+# 1. For each AD account unit, get the fingerprint as well as which object is used for address
+# 2. Get the IP of each object used
+# 3. Connect to AD server to get fingerprint
+# 4. Compare stored fingerprint with actual one.
+
+function removeJunkDataName (input) {
+    # Removes unneeded chars
+
+    #:ldap_ssl_fingerprints
+    gsub(":", "", input)
+
+    return input
+}
+
+function removeJunkData (input) {
+    # Removes unneeded chars
+
+    #("B4:CC:C8:32:62:4F:1F:57:07:EF:72:6E:F0:DC:36:CD")
+    gsub(/[()"]/, "", input)
+
+    return input
+}
+
+
+BEGIN {
+    sectionDepth = 0
+}
+
+######## parsing C files ########
+
+##############################
+# The C files in check point consists of data, stored in sections. Each data has a name and a value. Each section has only a name.
+# The sections are in hierarchies, and thus a section can contain multiple sub-section
+# The section names can be in different formats, so we match against all of them
+# Since it is important to know how far down in the hierarchie we are, we also store that.
+#############################
+
+# Name format 1
+#:ike_p1 (
+/:.+ \($/ {
+    sectionName = $1
+
+    # Removing junk
+    #:ike_p1
+    gsub(":","",sectionName)
+    #sectionName = trim(sectionName)
+
+    # Will count nr of tabs (plus one) to see on which level we are
+    sectionDepth = gsub(/\t/, "")
+    sectionDepth++
+
+    # Array to look up name
+    sectionArray[sectionDepth] = sectionName
+
+    next
+}
+
+
+# Name example 2
+#: (MyIntranet
+#: (ReferenceObject
+/: \(.+$/ {
+    sectionName = $2
+
+    # Removing junk
+    #(ReferenceObject
+    gsub("\\(", "", sectionName)
+
+    # Will count nr of tabs (plus one) to see on which level we are
+    sectionDepth = gsub(/\t/, "")
+    sectionDepth++
+
+    # Array to look up name
+    sectionArray[sectionDepth] = sectionName
+
+    next
+}
+
+
+
+#Name example 3
+#:ike_p1_dh_grp (ReferenceObject
+# Any line with an ":" followed by any characters then a space, followed by a "(" but not ending with a ")"
+/:.+ \(.[^)]*$/ {
+    sectionName = $1
+
+    # Removing junk
+    #:ike_p1_dh_grp
+    gsub(":", "", sectionName)
+
+    # Will count nr of tabs (plus one) to see on which level we are
+    sectionDepth = gsub(/\t/, "")
+    sectionDepth++
+
+    # Array to look up name
+    sectionArray[sectionDepth] = sectionName
+
+    next
+}
+
+#Name example 4
+#(
+/^\($/ {
+    sectionName = ""
+
+    # Will count nr of tabs (plus one) to see on which level we are
+    sectionDepth = gsub(/\t/, "")
+    sectionDepth++
+
+    next
+}
+
+# Decrease section depth by 1
+# Match for a tab with a ")" after it and then line end
+#	)
+/\t\)$/ {
+    # Tracks which level we are in the sections.
+    # We encountered a ) and thus we are one level higher
+    sectionDepth--
+
+    next
+}
+
+# Decrease section depth by 1
+# Match for a tab with a ")" after it and then line end
+#)
+/^\)$/ {
+    # Tracks which level we are in the sections.
+    # We encountered a ) and thus we are one level higher
+    sectionDepth--
+
+    next
+}
+
+#:ldap_ssl_fingerprints ("B4:CC:C8:32:62:4F:1F:57:07:EF:72:6E:F0:DC:36:CD")
+/:ldap_ssl_fingerprints / {
+    dataName = removeJunkDataName($1)
+    data = removeJunkData($2)
+
+    # In this section we get the name of the LDAP object (indeni.local__AD) and the fingerprint (B4:CC:C8:32:62:4F:1F:57:07:EF:72:6E:F0:DC:36:CD)
+    # Both are put into the array ldapFingerprintArr
+
+    #indeni.local__AD
+    ldapObject = sectionArray[3]
+
+    #B4:CC:C8:32:62:4F:1F:57:07:EF:72:6E:F0:DC:36:CD
+    fingerprint = data
+
+    # Remove colon from fingerprint
+    #B4:CC:C8:32:62:4F:1F:57:07:EF:72:6E:F0:DC:36:CD
+    gsub(/:/, "", fingerprint)
+
+    # set to lower
+    #B4CCC832624F1F5707EF726EF0DC36CD
+    fingerprint = tolower(fingerprint)
+
+    #ldapFingerprintArr[indeni.local__AD] = "b4ccc832624f1f5707ef726ef0dc36cd"
+    ldapFingerprintArr[ldapObject] = fingerprint
+}
+
+#:Name (Host_10.10.1.75)
+/:Name / {
+    dataName = removeJunkDataName($1)
+    data = removeJunkData($2)
+
+    # This section will trigger on all occurences of ":Name" which can occur very often in the input. To try and narrow it down
+    # the script will only care about occurences that occur on level 6 in the hierarchy. This will narrow down, but not completely
+    # remove entries that are not of importance.
+    # The name of that hierarchy section as well as the host object name will be stored in array ldapHostObjectArr
+
+    if (sectionDepth == "6") {
+        #indeni.local__AD
+        ldapObject = sectionArray[3]
+
+        #Host_10.10.1.75
+        hostObject = data
+
+        #ldapHostObjectArr["indeni.local__AD"] = "Host_10.10.1.75"
+        ldapHostObjectArr[ldapObject] = hostObject
+    }
+}
+
+#:ipaddr (10.10.1.75)
+/:ipaddr / {
+    dataName = removeJunkDataName($1)
+    data = removeJunkData($2)
+
+    # To resolve the host object name that was found in the section above to an IP address, the script need to consider
+    # all occurences of the ":ipaddr" part of the input file.
+    # As before, this part will occur very often, and to narrow it down the script only cares about when they are at a depth in the hierarchy of
+    # 3 or 4.
+    # The name of the object, along with the IP address will be stored in array hostIpArr
+
+    if (sectionDepth == "3" ||  sectionDepth == "4") {
+        #Host_192.168.197.14
+        hostObject = sectionArray[3]
+
+        #192.168.197.14
+        ipAddr = data
+
+        # store an array with the object name as index, and IP address as data
+        #hostIpArr["Host_192.168.197.14"] = "192.168.197.14"
+        hostIpArr[hostObject] = ipAddr
+    }
+}
+
+END {
+
+    #
+    # In the above sections several arrays have been created
+    # ldapFingerprintArr -
+    #	Has the name of the LDAP object as index, and fingerprint as data.
+    #	ldapFingerprintArr[indeni.local__AD] = "b4ccc832624f1f5707ef726ef0dc36cd"
+    #
+    # ldapHostObjectArr -
+    #	Has the name of the LDAP object as index, and host object as data.
+    #	ldapHostObjectArr[indeni.local__AD] = Host_10.10.1.75
+    #
+    # hostIpArr -
+    #	Has the host object as index, and IP as data.
+    #	hostIpArr[Host_192.168.197.14] = 192.168.197.14
+    #
+
+    # For each entry in the ldapHostObjectArr, make sure that the entries are only LDAP objects by comparing to the
+    # ldapFingerprintArr which is an array we know holds only LDAP objects.
+    for (ldapName in ldapHostObjectArr) {
+        if (!(ldapName in ldapFingerprintArr)) {
+            delete ldapHostObjectArr[ldapName]
+        }
+    }
+
+    # For each entry in the ldapHostObjectArr, replace the host object with the IP as data.
+    for (ldapName in ldapHostObjectArr) {
+        ldapHostObjectArr[ldapName] = hostIpArr[ldapHostObjectArr[ldapName]]
+    }
+
+    multistepList = ""
+    for (ldapName in ldapHostObjectArr) {
+        # Making sure that all data is present before writing into the multistepList. If the list is incomplete the script will end with an error.
+        if (ldapName in ldapHostObjectArr && ldapName in ldapFingerprintArr) {
+            #192.168.197.14:899711ebae4fb70d5c6ac95b66c238b3:indeni.local__AD,
+            multistepList = multistepList ldapHostObjectArr[ldapName] ":" ldapFingerprintArr[ldapName] ":" ldapName ","
+        }
+    }
+
+    # remove trailing comma
+    #192.168.197.14:899711ebae4fb70d5c6ac95b66c238b3:indeni.local__AD,
+    sub(/,$/, "", multistepList)
+
+    # Storing multi-step variable. Note that this variable can be empty; the following SSH commandline and subsequent
+    # AWK parsing step have checks to handle the case where the mulit-step var is empty.
+    writeDynamicVariable("multistepList", multistepList)
+}
+
+#! REMOTE::SSH
+
+if [ -n "${multistepList}" ]; then echo ${multistepList} | awk -F ":" {'print $1'} | while read ip; do cpopenssl s_client -connect $ip:636  | cpopenssl x509 | cpopenssl x509 -outform der |md5sum ; done ; echo ${multistepList} | awk -F ":" {'print "fingerprint: " $2; print "name: " $3'}; fi
+
+#! PARSER::AWK
+
+#${multistepList} = 192.168.197.14:899711ebae4fb70d5c6ac95b66c238b3:indeni.local__AD
+BEGIN {
+    # If the multistepList variable is empty, exit the script. This handles the case in which we find no ldap
+    # fingerprints in step 1
+    multistepList = dynamic("multistepList")
+    if (multistepList == "") {
+        exit
+    }
+}
+
+#b4ccc832624f1f5707ef726ef0dc36cd  -
+/^[a-f0-9]{32}/ {
+    currentFingerprint = $1
+}
+
+#fingerprint: b4ccc832624f1f5707ef726ef0dc36cd
+/^fingerprint: / {
+    storedFingerprint = $2
+}
+
+#name: indeni.local__AD
+/^name: / {
+    # for LDAP name
+    name = $2
+}
+
+END {
+    # If the multistepList variable is empty, exit the script. This handles the case in which we find no ldap
+    # fingerprints in step 1
+    if (multistepList == "") {
+        exit
+    }
+
+    # Make sure that we have two fingerprint to compare, otherwise report no issues.
+    if (currentFingerprint && storedFingerprint) {
+        if (currentFingerprint == storedFingerprint) {
+            status = 1
+        } else {
+            status = 0
+        }
+    } else {
+        status = 1
+    }
+
+    tags["name"] = name
+    writeDoubleMetric("ldap-integration-fingerprint-matched", tags, "gauge", "600", status)
+}

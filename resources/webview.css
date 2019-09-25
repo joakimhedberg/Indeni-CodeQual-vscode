@@ -1,0 +1,48 @@
+.error, .warning, .information, .compliant { 
+    display: inline-block;
+    border: solid 1px darkgray;
+    color: black;
+    margin: 3px;
+    font-weight: bold;
+    border-radius: 5px;
+    padding: 4px; 
+}
+.error { background-color: #a80000; color: white;}
+.warning { background-color: #db8300; color: white; }
+.information { background-color: #00a8f7; color: white; }
+.compliant { background-color: #006607; color: white; }
+.used, .unused, .summary {
+    margin: 4px;
+    padding: 6px;
+    margin: 2px;
+    font-size: larger;
+    font-weight: bold;
+    color: white;
+    border: solid 2px white;
+    border-radius: 3px;
+}
+
+.used { background-color: transparent; border-color: darkred; }
+.unused { background-color: transparent; border-color: darkgreen; }
+.summary { background-color: #7979ff; display: none; }
+.tooltip {
+    position: relative; 
+    display: inline-block; 
+    border-bottom: 1px dotted black;
+}
+
+.tooltip .tooltiptext { 
+    visibility: hidden;
+    width: 250px;
+    background-color: black; 
+    color: #fff; 
+    text-align: center; 
+    padding: 5px 0;
+    border-radius: 6px; 
+    position: absolute; 
+    z-index: 1;
+}
+
+.tooltip:hover .tooltiptext {
+    visibility: visible 
+}

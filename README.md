@@ -1,65 +1,36 @@
 # indeni-codequal README
 
-This is the README for your extension "indeni-codequal". After writing up a brief description, we recommend including the following sections.
+Code quality checker for Indeni .ind scripts
 
-## Features
+# Credits
+* Patrik Jonsson
+    * For coming up with the code quality idea in the first place and putting alot of work in the base that i've copy-pasted
+* Hawkeye Parker
+    * For helping to keep the project alive and up-to-date
+* Joakim Hedberg
+    * For stealing a great idea putting it into this tool
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+# Features
+A quality checker for Indeni scripts. A helper to make sure the scripts look as good as they possibly can and to make sure that all the Indeni scripts follows the same coding guidelines
 
-For example if there is an image subfolder under your extension project workspace:
+## Commands
+* Indeni code quality: *
+    * Perform code quality (CTRL+I P)
+        * Will look over you code and give you visual feedback on the errors, it will also open the view panel where you get an overview of the errors
+    * Toggle live update (CTRL+I T)
+        * Will toggle the feature to update the error checks as you type. If the overview is opened it will also live-update.
+    * Set syntax highlight(awk/yaml) (CTRL+I L)
+        * Will set the syntax language based on the code before you
+    * Clear decorations (CTRL+I C)
+        * Will clear the decorations from your file. If Live update is enabled they will soon reappear again.
 
-\!\[feature X\]\(images/feature-x.png\)
-
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
-
-## Requirements
-
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+# Requirements
+Indeni script
 
 ## Extension Settings
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
-
-For example:
-
 This extension contributes the following settings:
 
-* `myExtension.enable`: enable/disable this extension
-* `myExtension.thing`: set to `blah` to do something
-
-## Known Issues
-
-Calling out known issues can help limit users opening duplicate issues against your extension.
-
-## Release Notes
-
-Users appreciate release notes as you update your extension.
-
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
-
------------------------------------------------------------------------------------------------------------
-
-## Working with Markdown
-
-**Note:** You can author your README using Visual Studio Code.  Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux)
-* Toggle preview (`Shift+CMD+V` on macOS or `Shift+Ctrl+V` on Windows and Linux)
-* Press `Ctrl+Space` (Windows, Linux) or `Cmd+Space` (macOS) to see a list of Markdown snippets
-
-### For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+* `extension.warningBorderColor`: Border color for warning messages
+* `extension.errorBorderColor`: Border color for error messages
+* `extension.informationBorderColor`: Border color for information messages
