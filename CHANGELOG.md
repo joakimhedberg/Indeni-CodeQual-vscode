@@ -3,6 +3,9 @@
 ## [Upcoming release]
 Various bugfixes reported @ github
 
+## [0.3.2]
+Changed github repository path
+
 ## [0.3.1]
 Support for python parser
 Support for --inject-tags in command-runner. Only tested on Windows so far
