@@ -70,7 +70,7 @@ class SplitScriptValidationCollection {
         trailing_whitespace.ignore_quoted = false;
         this.validations.push(trailing_whitespace);
         //let writedebug_exists = new CodeValidationRegex("writeDebug()", "writeDebug() (or debug()) are great for troubleshooting, but code with that function should never reach customers.", FunctionSeverity.error, ["awk"], /(writeDebug\(.+\)|debug\(.+\))/gm);
-        this.validations.push(new RegexValidation_1.RegexValidation("writeDebug()", "writeDebug() (or debug()) are great for troubleshooting, but code with that function should never reach customers.", CodeValidation_1.FunctionSeverity.error, /(writeDebug\(.+\)|debug\(.+\))/gm, [], ["awk"]));
+        this.validations.push(new RegexValidation_1.RegexValidation("writeDebug()", "writeDebug() (or debug()) are great for troubleshooting, but code with that function should never reach customers.", CodeValidation_1.FunctionSeverity.error, /(writeDebug\(.+\)|debug\(.+\))/gm, [], ["awk", "python"]));
         //let empty_begin_section = new CodeValidationRegex("Empty BEGIN", "Empty BEGIN sections serves no purpose and should be disposed of.", FunctionSeverity.warning, ["awk"], /(BEGIN {\s*})/g);
         this.validations.push(new RegexValidation_1.RegexValidation("Empty BEGIN", "Empty BEGIN sections serves no purpose and should be disposed of.", CodeValidation_1.FunctionSeverity.warning, /(BEGIN\s+{\s*})/g, [], ["awk"]));
         //let empty_end_section = new CodeValidationRegex("Empty END", "Empty END sections serves no purpose and should be disposed of.", FunctionSeverity.warning, ["awk"], /(END {\s*})/g);

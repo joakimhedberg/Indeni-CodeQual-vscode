@@ -119,7 +119,7 @@ function get_functions() {
     // writeDebug is great for troubleshooting, but code with that command should never reach customers.
     // Example of an offending line: 
     //writeDebug("this is a debug")    
-    let writedebug_exists = new CodeValidation_1.CodeValidationRegex("writeDebug()", "writeDebug() (or debug()) are great for troubleshooting, but code with that function should never reach customers.", CodeValidation_1.FunctionSeverity.error, ["awk"], /(writeDebug\(.+\)|debug\(.+\))/gm);
+    let writedebug_exists = new CodeValidation_1.CodeValidationRegex("writeDebug()", "writeDebug() (or debug()) are great for troubleshooting, but code with that function should never reach customers.", CodeValidation_1.FunctionSeverity.error, ["awk", "py"], /(writeDebug\(.+\)|debug\(.+\))/gm);
     // Empty BEGIN sections serves no purpose and should be disposed of.
     // Example of an offending line: 
     //BEGIN {

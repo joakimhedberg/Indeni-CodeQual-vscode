@@ -21,6 +21,7 @@ const CommandRunnerResultView_1 = require("../../../gui/CommandRunnerResultView"
 const vscode = require("vscode");
 const SplitScriptTestCases_1 = require("./test_cases/SplitScriptTestCases");
 const SplitScriptPythonSection_1 = require("./sections/SplitScriptPythonSection");
+const CommandRunnerAsync_1 = require("../../../command-runner/CommandRunnerAsync");
 class SplitScript {
     constructor() {
         // Current open filename
@@ -228,7 +229,7 @@ class SplitScript {
             });
         }
     }
-    command_runner_full_command(context) {
+    command_runner_full_command(context, status_bar) {
         if (this.header_section === undefined) {
             return;
         }
@@ -237,60 +238,73 @@ class SplitScript {
                 return;
             }
             let command_runner = new CommandRunner_1.CommandRunner();
+            status_bar.show();
+            status_bar.text = 'Command-runner full-command: Running';
             command_runner.RunFullCommand(this.header_section.filename, value, (result) => {
                 let view = new CommandRunnerResultView_1.CommandRunnerResultView(context.extensionPath);
                 view.show_parser_result(result);
+                status_bar.text = 'Command-runner full-command: Done';
                 return;
             });
         });
     }
     command_runner_parse(context, tests_path) {
-        if (this.header_section === undefined) {
-            return;
-        }
-        let pick_items = [];
-        let test_cases = this.get_test_cases();
-        if (test_cases !== undefined) {
-            if (test_cases.length > 0) {
-                for (let test_case of test_cases) {
-                    if (test_case.name !== undefined) {
-                        pick_items.push({ label: test_case.name });
-                    }
-                }
-            }
-        }
-        pick_items.push({ label: 'Browse...' });
-        vscode.window.showQuickPick(pick_items, { 'canPickMany': false, 'placeHolder': 'Pick test case' }).then((value) => {
-            if (value !== undefined) {
-                if (value.label === 'Browse...') {
-                    vscode.window.showOpenDialog({ 'canSelectFolders': false, 'canSelectFiles': true, 'canSelectMany': false, 'defaultUri': (tests_path !== undefined) ? vscode.Uri.file(tests_path) : undefined }).then((value) => {
-                        if (value !== undefined && this.header_section !== undefined) {
-                            if (value.length > 0) {
-                                let command_runner = new CommandRunner_1.CommandRunner();
-                                command_runner.RunParseOnly(this.header_section.filename, value[0].fsPath, (result) => {
-                                    let view = new CommandRunnerResultView_1.CommandRunnerResultView(context.extensionPath);
-                                    view.show_parser_result(result);
-                                    return;
-                                });
-                            }
-                        }
-                    });
+        return __awaiter(this, void 0, void 0, function* () {
+            return new Promise((accept, reject) => {
+                if (this.header_section === undefined) {
                     return;
                 }
-                else if (test_cases !== undefined) {
-                    let selected_case = test_cases.find((item) => { return item.name === value.label; });
-                    if (selected_case !== undefined && this.header_section !== undefined) {
-                        if (selected_case.input_data_path !== undefined) {
-                            let command_runner = new CommandRunner_1.CommandRunner();
-                            command_runner.RunParseOnly(this.header_section.filename, selected_case.input_data_path, (result) => {
-                                let view = new CommandRunnerResultView_1.CommandRunnerResultView(context.extensionPath);
-                                view.show_parser_result(result);
-                                return;
-                            });
+                let pick_items = [];
+                let test_cases = this.get_test_cases();
+                if (test_cases !== undefined) {
+                    if (test_cases.length > 0) {
+                        for (let test_case of test_cases) {
+                            if (test_case.name !== undefined) {
+                                pick_items.push({ label: test_case.name });
+                            }
                         }
                     }
                 }
-            }
+                pick_items.push({ label: 'Browse...' });
+                vscode.window.showQuickPick(pick_items, { 'canPickMany': false, 'placeHolder': 'Pick test case' }).then((value) => {
+                    if (value !== undefined) {
+                        if (value.label === 'Browse...') {
+                            vscode.window.showOpenDialog({ 'canSelectFolders': false, 'canSelectFiles': true, 'canSelectMany': false, 'defaultUri': (tests_path !== undefined) ? vscode.Uri.file(tests_path) : undefined }).then((value) => {
+                                if (value !== undefined && this.header_section !== undefined) {
+                                    if (value.length > 0) {
+                                        let command_runner = new CommandRunnerAsync_1.CommandRunnerAsync();
+                                        let view = new CommandRunnerResultView_1.CommandRunnerResultView(context.extensionPath);
+                                        command_runner.RunParseOnly(this.header_section.filename, value[0].fsPath).then((result) => {
+                                            view.show_parser_result(result);
+                                            accept();
+                                        }).catch((error) => {
+                                            view.show_error_result(error);
+                                            reject();
+                                        });
+                                    }
+                                }
+                            });
+                            return;
+                        }
+                        else if (test_cases !== undefined) {
+                            let selected_case = test_cases.find((item) => { return item.name === value.label; });
+                            if (selected_case !== undefined && this.header_section !== undefined) {
+                                if (selected_case.input_data_path !== undefined) {
+                                    let command_runner = new CommandRunnerAsync_1.CommandRunnerAsync();
+                                    let view = new CommandRunnerResultView_1.CommandRunnerResultView(context.extensionPath);
+                                    command_runner.RunParseOnly(this.header_section.filename, selected_case.input_data_path).then((result) => {
+                                        view.show_parser_result(result);
+                                        accept();
+                                    }).catch((reason) => {
+                                        view.show_error_result(reason);
+                                        reject();
+                                    });
+                                }
+                            }
+                        }
+                    }
+                });
+            });
         });
     }
 }

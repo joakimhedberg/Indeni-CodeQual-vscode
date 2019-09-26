@@ -96,6 +96,18 @@ class CommandRunner {
             callback(new CommandRunnerParseOnlyResult_1.CommandRunnerParseOnlyResult(input_filename, ip_address, stdout));
         });
     }
+    RunParseOnlyAsync(filename, input_filename) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return new Promise((resolve, reject) => {
+                if (!this.verify_command_runner_path() || this.commandrunner_uri === undefined) {
+                    reject('Command-runner path undefined');
+                    return;
+                }
+                let exec_string = this.escape_filename(this.commandrunner_uri.fsPath) + " parse-only " + this.verbose + this.escape_filename(filename) + " -f " + this.escape_filename(input_filename);
+                this.RunCommandRunner(exec_string).then((raw_data) => { resolve(new CommandRunnerParseOnlyResult_1.CommandRunnerParseOnlyResult(input_filename, filename, raw_data)); }).catch((err) => { reject(err); });
+            });
+        });
+    }
     RunParseOnly(filename, input_filename, callback) {
         if (!this.verify_command_runner_path() || this.commandrunner_uri === undefined) {
             return;
@@ -199,8 +211,18 @@ class CommandRunner {
                 return Promise.reject('Invalid command-runner path');
             }
             command = this.escape_filename(this.commandrunner_uri.fsPath) + ' ' + command;
-            return new Promise(resolve => {
+            return new Promise((resolve, reject) => {
                 child.exec(command, (error, stdout, stderr) => {
+                    if (error !== null || stderr !== '') {
+                        if (error !== null) {
+                            reject(error.message);
+                            return;
+                        }
+                        else if (stderr !== '') {
+                            reject(stderr);
+                            return;
+                        }
+                    }
                     resolve(stdout);
                 });
             });

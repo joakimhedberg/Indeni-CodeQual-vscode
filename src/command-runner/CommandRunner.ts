@@ -106,6 +106,19 @@ export class CommandRunner {
         });
     }
 
+    public async RunParseOnlyAsync(filename : string, input_filename : string) : Promise<CommandRunnerParseOnlyResult> {
+        return new Promise<CommandRunnerParseOnlyResult>((resolve, reject) => {
+            if (!this.verify_command_runner_path() || this.commandrunner_uri === undefined) {
+                reject('Command-runner path undefined');
+                return;
+            }
+
+            let exec_string = this.escape_filename(this.commandrunner_uri.fsPath) + " parse-only " + this.verbose + this.escape_filename(filename) + " -f " + this.escape_filename(input_filename);
+
+            this.RunCommandRunner(exec_string).then((raw_data) => { resolve(new CommandRunnerParseOnlyResult(input_filename, filename, raw_data)); }).catch((err) => { reject(err); });
+        });
+    }
+
     public RunParseOnly(filename : string, input_filename : string, callback : ((result : CommandRunnerParseOnlyResult) => void)) {
         if (!this.verify_command_runner_path() || this.commandrunner_uri === undefined) {
             return;
@@ -228,8 +241,19 @@ export class CommandRunner {
         command = this.escape_filename(this.commandrunner_uri.fsPath) + ' ' + command;
 
         return new Promise<string>(
-            resolve => {
+            (resolve, reject) => {
                 child.exec(command, (error, stdout, stderr) => {
+                    if (error !== null || stderr !=='' ) {
+                        if (error !== null) {
+                            reject(error.message);
+                            return;
+                        }
+                        else if (stderr !== '') {
+                            reject(stderr);
+                            return;
+                        }
+                    }
+
                     resolve(stdout);
                 }
                 );

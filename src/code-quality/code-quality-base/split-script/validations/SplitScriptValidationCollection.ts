@@ -80,7 +80,7 @@ export class SplitScriptValidationCollection {
         this.validations.push(trailing_whitespace);
 
         //let writedebug_exists = new CodeValidationRegex("writeDebug()", "writeDebug() (or debug()) are great for troubleshooting, but code with that function should never reach customers.", FunctionSeverity.error, ["awk"], /(writeDebug\(.+\)|debug\(.+\))/gm);
-        this.validations.push(new RegexValidation("writeDebug()", "writeDebug() (or debug()) are great for troubleshooting, but code with that function should never reach customers.", FunctionSeverity.error, /(writeDebug\(.+\)|debug\(.+\))/gm, [], ["awk"]));
+        this.validations.push(new RegexValidation("writeDebug()", "writeDebug() (or debug()) are great for troubleshooting, but code with that function should never reach customers.", FunctionSeverity.error, /(writeDebug\(.+\)|debug\(.+\))/gm, [], ["awk", "python"]));
         
         //let empty_begin_section = new CodeValidationRegex("Empty BEGIN", "Empty BEGIN sections serves no purpose and should be disposed of.", FunctionSeverity.warning, ["awk"], /(BEGIN {\s*})/g);
         this.validations.push(new RegexValidation("Empty BEGIN", "Empty BEGIN sections serves no purpose and should be disposed of.", FunctionSeverity.warning, /(BEGIN\s+{\s*})/g, [], ["awk"]));

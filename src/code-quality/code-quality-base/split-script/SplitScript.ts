@@ -13,6 +13,7 @@ import * as vscode from 'vscode';
 import { SplitScriptTestCases } from "./test_cases/SplitScriptTestCases";
 import { SplitScriptTestCase } from "./test_cases/SplitScriptTestCase";
 import { SplitScriptPythonSection } from "./sections/SplitScriptPythonSection";
+import { CommandRunnerAsync } from "../../../command-runner/CommandRunnerAsync";
 
 export class SplitScript {
     // Current open filename
@@ -245,7 +246,7 @@ export class SplitScript {
         }
     }
 
-    public command_runner_full_command(context : vscode.ExtensionContext) {
+    public command_runner_full_command(context : vscode.ExtensionContext, status_bar : vscode.StatusBarItem) {
         if (this.header_section === undefined) {
             return;
         }
@@ -255,15 +256,19 @@ export class SplitScript {
                 return;
             }
             let command_runner = new CommandRunner();
-            command_runner.RunFullCommand(this.header_section.filename, value, (result) => {
+            status_bar.show();
+            status_bar.text = 'Command-runner full-command: Running';
+                command_runner.RunFullCommand(this.header_section.filename, value, (result) => {
                 let view = new CommandRunnerResultView(context.extensionPath);
                 view.show_parser_result(result);
+                status_bar.text = 'Command-runner full-command: Done';
                 return;
             });
         });
     }
 
-    public command_runner_parse(context : vscode.ExtensionContext, tests_path : string | undefined) {
+    public async command_runner_parse(context : vscode.ExtensionContext, tests_path : string | undefined) {
+        return new Promise<void>((accept, reject) => {
         if (this.header_section === undefined) {
             return;
         }
@@ -286,11 +291,14 @@ export class SplitScript {
                     vscode.window.showOpenDialog( { 'canSelectFolders' : false, 'canSelectFiles': true, 'canSelectMany': false, 'defaultUri': (tests_path !== undefined)? vscode.Uri.file(tests_path): undefined } ).then((value : vscode.Uri[] | undefined) => {
                         if (value !== undefined && this.header_section !== undefined) {
                             if (value.length > 0) {
-                                    let command_runner = new CommandRunner();
-                                    command_runner.RunParseOnly(this.header_section.filename, value[0].fsPath, (result) => {
-                                    let view = new CommandRunnerResultView(context.extensionPath);
+                                let command_runner = new CommandRunnerAsync();
+                                let view = new CommandRunnerResultView(context.extensionPath);
+                                command_runner.RunParseOnly(this.header_section.filename, value[0].fsPath).then((result) => {
                                     view.show_parser_result(result);
-                                    return;
+                                    accept();
+                                }).catch((error) => {
+                                    view.show_error_result(error);
+                                    reject();
                                 });
                             }
                         }
@@ -302,17 +310,21 @@ export class SplitScript {
 
                     if (selected_case !== undefined && this.header_section !== undefined) {
                         if (selected_case.input_data_path !== undefined) {
-                            let command_runner = new CommandRunner();
-                            command_runner.RunParseOnly(this.header_section.filename, selected_case.input_data_path, (result) => {
+                            let command_runner = new CommandRunnerAsync();
                             let view = new CommandRunnerResultView(context.extensionPath);
-                            view.show_parser_result(result);
-                            return;
-                        });
+                            command_runner.RunParseOnly(this.header_section.filename, selected_case.input_data_path).then((result) => {
+                                view.show_parser_result(result);
+                                accept();
+                            }).catch((reason) => { 
+                                view.show_error_result(reason);
+                                reject();
+                            });
                     }
 
                 }
             }
         }
     });
+});
 }
 }

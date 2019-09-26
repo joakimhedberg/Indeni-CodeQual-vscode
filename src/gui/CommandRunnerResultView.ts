@@ -48,6 +48,11 @@ export class CommandRunnerResultView {
         panel.webview.postMessage( { present_test_result: result });
     }
 
+    public show_error_result(result : string) {
+        let panel = this.get_panel('Errors');
+        panel.webview.html = '<html><body><pre>' + result + '</pre></body></html>';
+    }
+
     public show_parser_result(result : CommandRunnerParseOnlyResult) {
         let panel = this.get_panel('Command-runner parse-only result');
         panel.webview.html = this.get_parser_html(this.script_parser_uri);

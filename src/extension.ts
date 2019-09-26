@@ -392,9 +392,9 @@ function command_runner_full_command_method(context : vscode.ExtensionContext) {
 
         if (script.load(editor.document.fileName, undefined))
         {
-            if (script.is_valid_script)
-            {
-                script.command_runner_full_command(context);
+            
+            if (script.is_valid_script) {
+                script.command_runner_full_command(context, command_runner_statusbar_item);
             }
         }
     }
@@ -410,12 +410,22 @@ function commandrunner_parseonly_command_method(context : vscode.ExtensionContex
             return;
         }
 
+        command_runner_statusbar_item.text = 'Parse only: Running';
         if (script.load(editor.document.fileName, undefined))
         {
             if (script.is_valid_script)
             {
-                script.command_runner_parse(context, script.script_test_folder);
+                script.command_runner_parse(context, script.script_test_folder).then((value) => {
+                    command_runner_statusbar_item.text = 'Parse only: Done';
+                }).catch((error) => {
+                    command_runner_statusbar_item.text = 'Parse only: Done';
+                });
+            } else {
+                vscode.window.showErrorMessage('Script is not valid');
             }
+        }
+        else {
+            vscode.window.showErrorMessage('Unable to load script ');
         }
     }
 }
