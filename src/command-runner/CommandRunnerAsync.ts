@@ -3,6 +3,7 @@ import * as child from 'child_process';
 import * as process from 'process';
 import * as fs from 'fs';
 import { CommandRunnerParseOnlyResult } from './results/CommandRunnerParseOnlyResult';
+import { CommandRunnerTestRunResult } from './results/CommandRunnerTestRunResult';
 
 export class CommandRunnerAsync {    
     private commandrunner_path : string | undefined = undefined;
@@ -52,6 +53,46 @@ export class CommandRunnerAsync {
         return "";
     }
 
+    private inject_tags() : string {
+        if (this.commandrunner_inject_tags.length <= 0) {
+            console.log('Inject tags = 0');
+            return '';
+        }
+
+        let result : string[] = [];
+        for (let line of this.commandrunner_inject_tags) {
+            console.log('Parsing line: ' + line);
+            let key_value = line.split('=', 2);
+            console.log(key_value);
+            if (key_value.length === 2) {
+                console.log('Reached here');
+                let item = `""${key_value[0].trim()}""=>""${key_value[1].trim()}""`;
+                result.push(item);
+            }
+        }
+
+        if (result.length > 0) {
+            return '--inject-tags "' + result.join(' ') + '" ';
+        }
+
+        return '';
+    }
+
+    public async RunFullCommand(input_filename : string, ip_address : string) : Promise<CommandRunnerParseOnlyResult> {
+        return new Promise<CommandRunnerParseOnlyResult>((resolve, reject) => {
+            let exec_string = ` full-command ${this.verbose}${this.inject_tags()}--ssh ${this.commandrunner_user},${this.commandrunner_password} --basic-authentication ${this.commandrunner_user},${this.commandrunner_password} ${this.escape_filename(input_filename)} ${ip_address}`;
+
+            this.Run(exec_string).then((value) => {
+                return resolve(new CommandRunnerParseOnlyResult(input_filename, ip_address, value));
+            }).catch((error) => {
+                return reject(error);
+            });
+        });
+    }
+
+    /*
+        Runs command-runner with parse-only parameter, script filename and input file
+    */
     public async RunParseOnly(filename : string, input_filename : string) {
         return new Promise<CommandRunnerParseOnlyResult>((resolve, reject) => {
             let exec_string = ' parse-only ' + this.verbose + this.escape_filename(filename) + ' -f ' + this.escape_filename(input_filename);
@@ -62,7 +103,27 @@ export class CommandRunnerAsync {
             ).catch((reason) => { return reject(reason); });
         });
     }
+    
+    public async RunTestCases(filename : string, selected_case : string | undefined) : Promise<CommandRunnerTestRunResult> {
+        return new Promise<CommandRunnerTestRunResult>((accept, reject) => {
+            let exec_string = ' test run ' + this.escape_filename(filename);
+            if (selected_case !== undefined) {
+                exec_string += ' -c ' + selected_case;
+            }
 
+            this.Run(exec_string).then((data) =>
+            {
+                return accept(new CommandRunnerTestRunResult(data));
+            }).catch((error) => {
+                return reject(error);
+            });
+        });
+    }
+
+
+    /*
+        Runs command-runner with the specified parameters
+    */
     private async Run(command : string) {
         return new Promise<string>((resolve, reject) => 
         {

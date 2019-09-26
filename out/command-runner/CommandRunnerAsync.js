@@ -13,6 +13,7 @@ const child = require("child_process");
 const process = require("process");
 const fs = require("fs");
 const CommandRunnerParseOnlyResult_1 = require("./results/CommandRunnerParseOnlyResult");
+const CommandRunnerTestRunResult_1 = require("./results/CommandRunnerTestRunResult");
 class CommandRunnerAsync {
     constructor() {
         this.commandrunner_path = undefined;
@@ -54,6 +55,42 @@ class CommandRunnerAsync {
         }
         return "";
     }
+    inject_tags() {
+        if (this.commandrunner_inject_tags.length <= 0) {
+            console.log('Inject tags = 0');
+            return '';
+        }
+        let result = [];
+        for (let line of this.commandrunner_inject_tags) {
+            console.log('Parsing line: ' + line);
+            let key_value = line.split('=', 2);
+            console.log(key_value);
+            if (key_value.length === 2) {
+                console.log('Reached here');
+                let item = `""${key_value[0].trim()}""=>""${key_value[1].trim()}""`;
+                result.push(item);
+            }
+        }
+        if (result.length > 0) {
+            return '--inject-tags "' + result.join(' ') + '" ';
+        }
+        return '';
+    }
+    RunFullCommand(input_filename, ip_address) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return new Promise((resolve, reject) => {
+                let exec_string = ` full-command ${this.verbose}${this.inject_tags()}--ssh ${this.commandrunner_user},${this.commandrunner_password} --basic-authentication ${this.commandrunner_user},${this.commandrunner_password} ${this.escape_filename(input_filename)} ${ip_address}`;
+                this.Run(exec_string).then((value) => {
+                    return resolve(new CommandRunnerParseOnlyResult_1.CommandRunnerParseOnlyResult(input_filename, ip_address, value));
+                }).catch((error) => {
+                    return reject(error);
+                });
+            });
+        });
+    }
+    /*
+        Runs command-runner with parse-only parameter, script filename and input file
+    */
     RunParseOnly(filename, input_filename) {
         return __awaiter(this, void 0, void 0, function* () {
             return new Promise((resolve, reject) => {
@@ -64,6 +101,24 @@ class CommandRunnerAsync {
             });
         });
     }
+    RunTestCases(filename, selected_case) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return new Promise((accept, reject) => {
+                let exec_string = ' test run ' + this.escape_filename(filename);
+                if (selected_case !== undefined) {
+                    exec_string += ' -c ' + selected_case;
+                }
+                this.Run(exec_string).then((data) => {
+                    return accept(new CommandRunnerTestRunResult_1.CommandRunnerTestRunResult(data));
+                }).catch((error) => {
+                    return reject(error);
+                });
+            });
+        });
+    }
+    /*
+        Runs command-runner with the specified parameters
+    */
     Run(command) {
         return __awaiter(this, void 0, void 0, function* () {
             return new Promise((resolve, reject) => {

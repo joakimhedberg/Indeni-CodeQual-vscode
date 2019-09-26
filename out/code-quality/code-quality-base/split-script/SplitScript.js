@@ -187,64 +187,85 @@ class SplitScript {
         });
     }
     command_runner_test(context) {
-        if (this.header_section === undefined) {
-            return;
-        }
-        //console.log('Getting test cases');
-        let test_cases = this.get_test_cases();
-        if (test_cases !== undefined) {
-            if (test_cases.length > 0) {
-                const items = test_cases.map(item => {
-                    return {
-                        label: item.name
-                    };
-                });
-                items.unshift({ label: 'All' });
-                vscode.window.showQuickPick(items, { 'canPickMany': false, 'placeHolder': 'Pick test case' }).then((value) => {
-                    let selected_case = undefined;
-                    if (value !== undefined) {
-                        if (value.label !== 'All') {
-                            selected_case = value.label;
-                        }
+        return __awaiter(this, void 0, void 0, function* () {
+            return new Promise((accept, reject) => {
+                if (this.header_section === undefined) {
+                    return reject('No header section');
+                }
+                let test_cases = this.get_test_cases();
+                if (test_cases !== undefined) {
+                    if (test_cases.length > 0) {
+                        const items = test_cases.map(item => {
+                            return {
+                                label: item.name
+                            };
+                        });
+                        items.unshift({ label: 'All' });
+                        vscode.window.showQuickPick(items, { 'canPickMany': false, 'placeHolder': 'Pick test case' }).then((value) => {
+                            let selected_case = undefined;
+                            if (value !== undefined) {
+                                if (value.label !== 'All') {
+                                    selected_case = value.label;
+                                }
+                            }
+                            else {
+                                return reject('No test case selection');
+                            }
+                            if (this.header_section === undefined) {
+                                return reject('No header section defined');
+                            }
+                            let command_runner = new CommandRunnerAsync_1.CommandRunnerAsync();
+                            let view = new CommandRunnerResultView_1.CommandRunnerResultView(context.extensionPath);
+                            command_runner.RunTestCases(this.header_section.filename, selected_case).then((result) => {
+                                view.show_test_result(result);
+                                accept();
+                            }).catch((err) => {
+                                view.show_error_result(err);
+                                reject();
+                            });
+                        });
                     }
-                    else {
-                        return;
-                    }
-                    if (this.header_section === undefined) {
-                        return;
-                    }
-                    let command_runner = new CommandRunner_1.CommandRunner();
-                    command_runner.RunTests(this.header_section.filename, selected_case, (result) => {
-                        let view = new CommandRunnerResultView_1.CommandRunnerResultView(context.extensionPath);
+                }
+                else {
+                    let command_runner = new CommandRunnerAsync_1.CommandRunnerAsync();
+                    let view = new CommandRunnerResultView_1.CommandRunnerResultView(context.extensionPath);
+                    command_runner.RunTestCases(this.header_section.filename, undefined).then((result) => {
                         view.show_test_result(result);
+                        accept();
+                    }).catch((err) => {
+                        view.show_error_result(err);
+                        reject();
                     });
-                });
-            }
-        }
-        else {
-            let command_runner = new CommandRunner_1.CommandRunner();
-            command_runner.RunTests(this.header_section.filename, undefined, (result) => {
-                let view = new CommandRunnerResultView_1.CommandRunnerResultView(context.extensionPath);
-                view.show_test_result(result);
+                }
             });
-        }
+        });
     }
-    command_runner_full_command(context, status_bar) {
-        if (this.header_section === undefined) {
-            return;
-        }
-        vscode.window.showInputBox({ placeHolder: 'IP Address' }).then((value) => {
-            if (value === undefined || this.header_section === undefined) {
-                return;
-            }
-            let command_runner = new CommandRunner_1.CommandRunner();
-            status_bar.show();
-            status_bar.text = 'Command-runner full-command: Running';
-            command_runner.RunFullCommand(this.header_section.filename, value, (result) => {
-                let view = new CommandRunnerResultView_1.CommandRunnerResultView(context.extensionPath);
-                view.show_parser_result(result);
-                status_bar.text = 'Command-runner full-command: Done';
-                return;
+    command_runner_full_command(context) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return new Promise((accept, reject) => {
+                if (this.header_section === undefined) {
+                    return reject('No header section defined');
+                }
+                vscode.window.showInputBox({ placeHolder: 'IP Address' }).then((value) => {
+                    if (value === undefined || this.header_section === undefined) {
+                        return reject('No ip address entered');
+                    }
+                    let command_runner = new CommandRunnerAsync_1.CommandRunnerAsync();
+                    let view = new CommandRunnerResultView_1.CommandRunnerResultView(context.extensionPath);
+                    command_runner.RunFullCommand(this.header_section.filename, value).then((result) => {
+                        view.show_parser_result(result);
+                        accept();
+                    }).catch((error) => {
+                        view.show_error_result(error);
+                        reject();
+                    });
+                    /*command_runner.RunFullCommand(this.header_section.filename, value, (result) => {
+                    let view = new CommandRunnerResultView(context.extensionPath);
+                    view.show_parser_result(result);
+                    status_bar.text = 'Command-runner full-command: Done';
+                    return;
+                });*/
+                });
             });
         });
     }
@@ -252,7 +273,7 @@ class SplitScript {
         return __awaiter(this, void 0, void 0, function* () {
             return new Promise((accept, reject) => {
                 if (this.header_section === undefined) {
-                    return;
+                    return reject('No header section defined');
                 }
                 let pick_items = [];
                 let test_cases = this.get_test_cases();

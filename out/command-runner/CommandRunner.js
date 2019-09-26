@@ -12,7 +12,6 @@ const vscode = require("vscode");
 const child = require("child_process");
 const process = require("process");
 const fs = require("fs");
-const CommandRunnerParseOnlyResult_1 = require("./results/CommandRunnerParseOnlyResult");
 const CommandRunnerTestRunResult_1 = require("./results/CommandRunnerTestRunResult");
 const CommandRunnerTestCreateResult_1 = require("./results/CommandRunnerTestCreateResult");
 class CommandRunner {
@@ -72,61 +71,74 @@ class CommandRunner {
         }
         return '';
     }
-    RunFullCommand(input_filename, ip_address, callback) {
+    /*public RunFullCommand(input_filename : string, ip_address : string, callback : ((result : CommandRunnerParseOnlyResult) => void)) {
         if (!this.verify_command_runner_path() || this.commandrunner_uri === undefined) {
             return;
         }
+
         if (this.commandrunner_user === undefined) {
             this.commandrunner_user = '';
         }
+
         if (this.commandrunner_password === undefined) {
             this.commandrunner_password = '';
         }
         console.log('Inject tags');
         console.log(this.inject_tags());
+
         let command = this.escape_filename(this.commandrunner_uri.fsPath) + ` full-command ${this.verbose}${this.inject_tags()}--ssh ${this.commandrunner_user},${this.commandrunner_password} --basic-authentication ${this.commandrunner_user},${this.commandrunner_password} ` + this.escape_filename(input_filename) + " " + ip_address;
         console.log('Commandrunner command: ' + command);
-        child.exec(command, (error, stdout, stderr) => {
+        child.exec(command,
+        (error, stdout, stderr) => {
             if (error !== null) {
                 console.error(error);
             }
+
             if (stderr !== '') {
                 console.error(stderr);
             }
-            callback(new CommandRunnerParseOnlyResult_1.CommandRunnerParseOnlyResult(input_filename, ip_address, stdout));
+            callback(new CommandRunnerParseOnlyResult(input_filename, ip_address, stdout));
         });
     }
-    RunParseOnlyAsync(filename, input_filename) {
-        return __awaiter(this, void 0, void 0, function* () {
-            return new Promise((resolve, reject) => {
-                if (!this.verify_command_runner_path() || this.commandrunner_uri === undefined) {
-                    reject('Command-runner path undefined');
-                    return;
-                }
-                let exec_string = this.escape_filename(this.commandrunner_uri.fsPath) + " parse-only " + this.verbose + this.escape_filename(filename) + " -f " + this.escape_filename(input_filename);
-                this.RunCommandRunner(exec_string).then((raw_data) => { resolve(new CommandRunnerParseOnlyResult_1.CommandRunnerParseOnlyResult(input_filename, filename, raw_data)); }).catch((err) => { reject(err); });
-            });
+
+    public async RunParseOnlyAsync(filename : string, input_filename : string) : Promise<CommandRunnerParseOnlyResult> {
+        return new Promise<CommandRunnerParseOnlyResult>((resolve, reject) => {
+            if (!this.verify_command_runner_path() || this.commandrunner_uri === undefined) {
+                reject('Command-runner path undefined');
+                return;
+            }
+
+            let exec_string = this.escape_filename(this.commandrunner_uri.fsPath) + " parse-only " + this.verbose + this.escape_filename(filename) + " -f " + this.escape_filename(input_filename);
+
+            this.RunCommandRunner(exec_string).then((raw_data) => { resolve(new CommandRunnerParseOnlyResult(input_filename, filename, raw_data)); }).catch((err) => { reject(err); });
         });
     }
-    RunParseOnly(filename, input_filename, callback) {
+
+    public RunParseOnly(filename : string, input_filename : string, callback : ((result : CommandRunnerParseOnlyResult) => void)) {
         if (!this.verify_command_runner_path() || this.commandrunner_uri === undefined) {
             return;
         }
+
         if (this.commandrunner_uri === undefined) {
             return;
         }
+        
         let exec_string = this.escape_filename(this.commandrunner_uri.fsPath) + " parse-only " + this.verbose + this.escape_filename(filename) + " -f " + this.escape_filename(input_filename);
         console.log(exec_string);
-        child.exec(exec_string, (error, stdout, stderr) => {
+        child.exec(exec_string,
+        (error, stdout, stderr) => {
             if (error !== null) {
                 console.error(error);
             }
+
             if (stderr !== '') {
                 console.error(stderr);
             }
-            callback(new CommandRunnerParseOnlyResult_1.CommandRunnerParseOnlyResult(input_filename, filename, stdout));
+
+            callback(new CommandRunnerParseOnlyResult(input_filename, filename, stdout));
+
         });
-    }
+    }*/
     CreateTestCaseAsync(split_script) {
         return __awaiter(this, void 0, void 0, function* () {
             if (!split_script.is_valid_script) {

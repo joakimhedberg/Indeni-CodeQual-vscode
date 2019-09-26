@@ -195,74 +195,93 @@ export class SplitScript {
         }
     }
 
-    public command_runner_test(context : vscode.ExtensionContext) {
-        if (this.header_section === undefined) {
-            return;
-        }
-
-        //console.log('Getting test cases');
-        let test_cases = this.get_test_cases();
+    public async command_runner_test(context : vscode.ExtensionContext) : Promise<void> {
+        return new Promise<void>((accept, reject) => {
+               
+            if (this.header_section === undefined) {
+                return reject('No header section');
+            }
         
-        if (test_cases !== undefined) {
-            if (test_cases.length > 0) {
-                const items = <vscode.QuickPickItem[]>test_cases.map(
-                    item => 
-                    {
-                        return {
-                            label: item.name
-                        };
-                    });
-                    items.unshift({ label: 'All' });
-                    
-                vscode.window.showQuickPick(items, { 'canPickMany': false, 'placeHolder': 'Pick test case' }).then((value : vscode.QuickPickItem | undefined) => {
-                    let selected_case : string | undefined = undefined;
-                    if (value !== undefined) {
-                        if (value.label !== 'All') {
-                            selected_case = value.label;
+            let test_cases = this.get_test_cases();
+            
+            if (test_cases !== undefined) {
+                if (test_cases.length > 0) {
+                    const items = <vscode.QuickPickItem[]>test_cases.map(
+                        item => 
+                        {
+                            return {
+                                label: item.name
+                            };
+                        });
+                        items.unshift({ label: 'All' });
+                        
+                    vscode.window.showQuickPick(items, { 'canPickMany': false, 'placeHolder': 'Pick test case' }).then((value : vscode.QuickPickItem | undefined) => {
+                        let selected_case : string | undefined = undefined;
+                        if (value !== undefined) {
+                            if (value.label !== 'All') {
+                                selected_case = value.label;
+                            }
                         }
-                    }
-                    else {
-                        return;
-                    }
+                        else {
+                            return reject('No test case selection');
+                        }
 
-                    if (this.header_section === undefined) {
-                        return;
-                    }
+                        if (this.header_section === undefined) {
+                            return reject('No header section defined');
+                        }
 
-                    let command_runner = new CommandRunner();
-                    command_runner.RunTests(this.header_section.filename, selected_case, (result) => {
+                        let command_runner = new CommandRunnerAsync();
                         let view = new CommandRunnerResultView(context.extensionPath);
-                        view.show_test_result(result);
+                        command_runner.RunTestCases(this.header_section.filename, selected_case).then((result) => {
+                            view.show_test_result(result);
+                            accept();
+                        }).catch((err) => {
+                            view.show_error_result(err);
+                            reject();
+                        });
                     });
+                }
+            }
+            else {
+                let command_runner = new CommandRunnerAsync();
+                let view = new CommandRunnerResultView(context.extensionPath);
+                command_runner.RunTestCases(this.header_section.filename, undefined).then((result) => {
+                    view.show_test_result(result);
+                    accept();
+                }).catch((err) => {
+                    view.show_error_result(err);
+                    reject();
                 });
             }
-        }
-        else {
-            let command_runner = new CommandRunner();
-            command_runner.RunTests(this.header_section.filename, undefined, (result) => {
-                let view = new CommandRunnerResultView(context.extensionPath);
-                view.show_test_result(result);
-            });
-        }
+        });
     }
 
-    public command_runner_full_command(context : vscode.ExtensionContext, status_bar : vscode.StatusBarItem) {
-        if (this.header_section === undefined) {
-            return;
-        }
+    public async command_runner_full_command(context : vscode.ExtensionContext) {
+        return new Promise<void>((accept, reject) => {
 
-        vscode.window.showInputBox({ placeHolder: 'IP Address' }).then((value : string | undefined) => {
-            if (value === undefined || this.header_section === undefined) {
-                return;
+            if (this.header_section === undefined) {
+                return reject('No header section defined');
             }
-            let command_runner = new CommandRunner();
-            status_bar.show();
-            status_bar.text = 'Command-runner full-command: Running';
-                command_runner.RunFullCommand(this.header_section.filename, value, (result) => {
+
+            vscode.window.showInputBox({ placeHolder: 'IP Address' }).then((value : string | undefined) => {
+                if (value === undefined || this.header_section === undefined) {
+                    return reject('No ip address entered');
+                }
+                let command_runner = new CommandRunnerAsync();
                 let view = new CommandRunnerResultView(context.extensionPath);
-                view.show_parser_result(result);
-                status_bar.text = 'Command-runner full-command: Done';
-                return;
+                command_runner.RunFullCommand(this.header_section.filename, value).then((result) => {
+                    view.show_parser_result(result);
+                    accept();
+                }).catch((error) => {
+                    view.show_error_result(error);
+                    reject();
+                });
+                    /*command_runner.RunFullCommand(this.header_section.filename, value, (result) => {
+                    let view = new CommandRunnerResultView(context.extensionPath);
+                    view.show_parser_result(result);
+                    status_bar.text = 'Command-runner full-command: Done';
+                    return;
+                });*/
             });
         });
     }
@@ -270,7 +289,7 @@ export class SplitScript {
     public async command_runner_parse(context : vscode.ExtensionContext, tests_path : string | undefined) {
         return new Promise<void>((accept, reject) => {
         if (this.header_section === undefined) {
-            return;
+            return reject('No header section defined');
         }
         
         let pick_items : vscode.QuickPickItem[] = [];

@@ -76,7 +76,7 @@ export class CommandRunner {
         return '';
     }
 
-    public RunFullCommand(input_filename : string, ip_address : string, callback : ((result : CommandRunnerParseOnlyResult) => void)) {
+    /*public RunFullCommand(input_filename : string, ip_address : string, callback : ((result : CommandRunnerParseOnlyResult) => void)) {
         if (!this.verify_command_runner_path() || this.commandrunner_uri === undefined) {
             return;
         }
@@ -143,7 +143,7 @@ export class CommandRunner {
             callback(new CommandRunnerParseOnlyResult(input_filename, filename, stdout));
 
         });
-    }
+    }*/
 
     public async CreateTestCaseAsync(split_script : SplitScript) : Promise<CommandRunnerTestCreateResult | undefined> {
         if (!split_script.is_valid_script) {
