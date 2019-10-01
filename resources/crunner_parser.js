@@ -10,12 +10,13 @@ var metric_count_cell;
 var metrics_table;
 var raw_output_div;
 var parse_result = undefined;
+var debug_lines_div;
 
 window.onload = function() {
     main_div = document.createElement('div');
     main_div.id = 'main_div';
     raw_output_div = document.createElement('div');
-
+    debug_lines_div = document.createElement('div');
     window.document.body.appendChild(main_div);
     window.document.body.appendChild(raw_output_div);
 
@@ -36,6 +37,7 @@ window.onload = function() {
     
     main_div.appendChild(parser_header);
     main_div.appendChild(metrics_table);
+    main_div.appendChild(debug_lines_div);
 
     var header = metrics_table.createTHead();
     let metrics_row = header.insertRow();
@@ -77,6 +79,7 @@ function load_result() {
     input_filename_cell.innerHTML = '';
     metrics_table.tBodies[0].innerHTML = '';
     raw_output_div.innerHTML = '';
+    debug_lines_div.innerHTML = '';
     
     if (parse_result !== undefined) {
         script_filename_cell.appendChild(document.createTextNode(parse_result.script_file_name));
@@ -87,7 +90,6 @@ function load_result() {
         size_cell.innerHTML = parse_result.size + ' ' + parse_result.size_unit;
         duration_cell.innerHTML = (parse_result.duration === undefined? '': parse_result.duration + ' ms');
         metric_count_cell.innerHTML = parse_result.metrics.length;
-    
         if (parse_result.metrics.length <= 0) 
         {
             metrics_table.style.visibility = 'hidden';
@@ -147,8 +149,18 @@ function load_result() {
                 cell_value.innerHTML = tag.value === undefined? '': tag.value;
 
             }
-
         }
+
+        if (parse_result.debug_lines) {
+            let debug_title = document.createElement('span');
+            debug_title.innerHTML = 'Debug lines';
+            debug_title.className = 'title';
+            debug_lines_div.appendChild(debug_title);
+            let debug_lines_pre = document.createElement('pre');
+            debug_lines_div.appendChild(debug_lines_pre);
+            
+            debug_lines_pre.innerHTML = parse_result.debug_lines.join('\n');
+        };
     }
 }
 

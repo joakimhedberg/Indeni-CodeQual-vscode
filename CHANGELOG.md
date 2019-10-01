@@ -3,6 +3,9 @@
 ## [Upcoming release]
 Various bugfixes reported @ github
 
+## [0.3.4]
+Added debug lines as output to command-runner result view
+
 ## [0.3.3]
 Moved CommandRunner over to an async class
 Split create/recreate test cases into two separate commands
