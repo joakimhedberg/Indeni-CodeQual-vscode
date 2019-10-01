@@ -12,10 +12,11 @@ import { CodeQualityView } from './gui/CodeQualityView';
 import { SplitScript } from './code-quality/code-quality-base/split-script/SplitScript';
 import { SplitScriptValidationCollection } from './code-quality/code-quality-base/split-script/validations/SplitScriptValidationCollection';
 import { FunctionSeverity } from './code-quality/code-quality-base/CodeValidation';
-import { DOC_WRITE_DOUBLE_METRIC, DOC_WRITE_COMPLEX_METRIC_STRING, DOC_WRITE_COMPLEX_METRIC_ARRAY, DOC_WRITE_DEBUG, DOC_WRITE_TAG } from './resources/hover_documentation/write_functions';
-import { IndeniRule } from './code-quality/code-quality-base/rule/IndeniRule';
-import { RuleInputBuilder } from './code-quality/rule-runner/results/RuleInputBuilder';
-import { CommandRunnerResultView } from './gui/CommandRunnerResultView';
+import  * as commandrunner_commands from './extension_commands/command_runner_commands';
+import * as rulerunner_commands from './extension_commands/rulerunner_commands';
+
+import { create_yaml_provider, create_awk_provider } from './extension_commands/hover_providers';
+import { create_python_template } from './extension_commands/misc_commands';
 
 let error_collection : MarkerCollection;
 let warning_collection : MarkerCollection;
@@ -27,7 +28,7 @@ let quality_view : CodeQualityView;
 const quality_functions : CodeValidations = new CodeValidations();
 
 let split_validations : SplitScriptValidationCollection = new SplitScriptValidationCollection();
-let command_runner_statusbar_item : vscode.StatusBarItem;
+export let command_runner_statusbar_item : vscode.StatusBarItem;
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
@@ -98,67 +99,11 @@ export function activate(context: vscode.ExtensionContext) {
         }
     });
 
-    vscode.languages.registerHoverProvider('awk', {
-        provideHover(document, position, token) {
-            let range = document.getWordRangeAtPosition(position);
-            let text = document.getText(range);
-            if (text.startsWith('writeDoubleMetric')) {
-                return {
-                        contents: DOC_WRITE_DOUBLE_METRIC
-                };
-            } else if (text.startsWith("writeComplexMetricString")) {
-                return {
-                        contents: DOC_WRITE_COMPLEX_METRIC_STRING
-                };
-            }
-            else if (text.startsWith("writeComplexMetricObjectArray")) {
-                return {
-                        contents: DOC_WRITE_COMPLEX_METRIC_ARRAY
-                };
-            }
-            else if (text.startsWith("writeDebug")) {
-                return {
-                    contents: DOC_WRITE_DEBUG
-                };
-            } else if (text.startsWith("writeTag")) {
-                return {
-                    contents: DOC_WRITE_TAG
-                };
-            }
-        }
-      });
+    let yaml_rule_provider = create_yaml_provider();
+    let awk_provider = create_awk_provider();
 
 
-      let set_commandrunner_verbose_command = vscode.commands.registerCommand('extension.setCommandRunnerVerbose', () => {
-        //this.commandrunner_path = vscode.workspace.getConfiguration().get('indeni.commandRunnerPath');
-        let verbose = vscode.workspace.getConfiguration();
-        let verbose_value = verbose.get('indeni.commandRunnerVerbose');
-
-        let description_on = '';
-        let description_off = '';
-        if (verbose_value === true) {
-            description_on = 'Current value';
-        }
-        else {
-            description_off = 'Current value';
-        }
-        let items : vscode.QuickPickItem[] = [];
-        items.push({ label: 'On', description: description_on });
-        items.push({ label: 'Off', description: description_off });
-
-        vscode.window.showQuickPick(items, { placeHolder: verbose_value === true? 'On': 'Off' }).then((value) => {
-            if (value !== undefined) {
-                switch (value.label) {
-                    case 'On':
-                        verbose.update('indeni.commandRunnerVerbose', true);
-                        break;
-                    case 'Off':
-                        verbose.update('indeni.commandRunnerVerbose', false);
-                        break;
-                }
-            }
-        }, ((reason) => {}));
-      });
+      let set_commandrunner_verbose_command = vscode.commands.registerCommand('extension.setCommandRunnerVerbose', () => { commandrunner_commands.set_verbose(); });
 
       let set_language_command = vscode.commands.registerCommand('extension.setLanguage', () => {
         var editor = vscode.window.activeTextEditor;
@@ -173,78 +118,28 @@ export function activate(context: vscode.ExtensionContext) {
             clearDecorations(editor);
         }
     });
-
-    let rule_runner_create_input_command = vscode.commands.registerCommand('extension.createRuleRunnerInput', () => 
-    {
-        let default_uri : vscode.Uri | undefined = undefined;
-        if (vscode.window.activeTextEditor !== undefined) {
-            default_uri = vscode.Uri.file(vscode.window.activeTextEditor.document.fileName);
-        }
-
-        vscode.window.showOpenDialog({ canSelectFiles:true, canSelectFolders: false, canSelectMany: false, openLabel: 'Open output test file', defaultUri: default_uri }).then(value => {
-            if (value === undefined) {
-                return;
-            }
-
-            let filename = value[0].fsPath;
-            let input_builder = new RuleInputBuilder();
-            input_builder.from_time_series_output(filename).then(result => {
-
-                if (result !== undefined) {
-                    vscode.workspace.openTextDocument({ content: result, language: 'yaml' }).then(onfulfilled => {
-                        if (vscode.window.activeTextEditor !== undefined) {
-                            vscode.window.showTextDocument(onfulfilled);
-                        }
-                    }, onrejected => {
-                    });
-                }
-            }).catch(err => {
-                console.error(err);
+    
+    let create_python_parser_command = vscode.commands.registerCommand('extension.createPythonParserCommand', () => {
+        create_python_template(context).then((data : string) => 
+        {
+            vscode.workspace.openTextDocument({ content: data, language: 'python' }).then((doc) =>
+            {
+                vscode.window.showTextDocument(doc);
             });
+        }).catch((err) => {
+            vscode.window.showErrorMessage(err);
         });
     });
 
-    let run_rulerunner_compile_command = vscode.commands.registerCommand('extension.triggerRuleRunnerCompile', () => {
-        var editor = vscode.window.activeTextEditor;
-        command_runner_statusbar_item.show();
-        command_runner_statusbar_item.text = "Rule runner: Running";
-        
-        command_runner_statusbar_item.tooltip = "";
-        if (editor !== undefined) {
-            let rule = new IndeniRule(editor.document.fileName);
-            
-            rule.RuleRunnerCompile().then(value => {
-            if (value !== undefined) {
-                if (value.has_error) {
-                    command_runner_statusbar_item.text = 'Rule Runner: Failed';
-                    command_runner_statusbar_item.tooltip = value.error_data;
-                    console.log(value.error_data);
-                } else {
-                    vscode.window.showInformationMessage('Rule runner: Success');
-                    command_runner_statusbar_item.text = 'Rule runner: Success';
-                    command_runner_statusbar_item.tooltip = "Rule compiled successfully";
-                }
-                let view = new CommandRunnerResultView(context.extensionPath);
-                view.show_rulerunner_result(value);
-            } else {
-                vscode.window.showErrorMessage('Rule runner: Failed');
-                command_runner_statusbar_item.text = 'Rule runner: Failed';
-            }
+    let create_indeni_rule = vscode.commands.registerCommand('extension.createRuleCommand', () => { rulerunner_commands.create_rule(); });
+    let rule_runner_create_input_command = vscode.commands.registerCommand('extension.createRuleRunnerInput', () => { rulerunner_commands.create_rulerunner_input(); });
+    let run_rulerunner_compile_command = vscode.commands.registerCommand('extension.triggerRuleRunnerCompile', () => { rulerunner_commands.compile_command(context.extensionPath, command_runner_statusbar_item); });
 
-            }).catch((error => {
-                vscode.window.showErrorMessage(error);
-                command_runner_statusbar_item.text = "Rule runner: Failed";
-                command_runner_statusbar_item.tooltip = error;
-                console.log(error);
-            }));
-        }
-    });
-
-    let commandrunner_test_command = vscode.commands.registerCommand('extension.commandRunnerTest', () => { commandrunner_test_command_method(context); });
-    let commandrunner_test_create_command = vscode.commands.registerCommand('extension.commandRunnerTestCreate', () => { command_runner__test_create_command_method(context); });
-
-    let commandrunner_parseonly_command = vscode.commands.registerCommand('extension.commandRunnerParseOnly', () => { commandrunner_parseonly_command_method(context); });
-    let commandrunner_full_command = vscode.commands.registerCommand('extension.commandRunnerFullCommand', () => { command_runner_full_command_method(context); });
+    let commandrunner_test_command = vscode.commands.registerCommand('extension.commandRunnerTest', () => { commandrunner_commands.test_command_method(context); });
+    let commandrunner_test_create_command = vscode.commands.registerCommand('extension.commandRunnerTestCreate', () => { commandrunner_commands.test_create_command_method(context); });
+    let commandrunner_test_recreate_command = vscode.commands.registerCommand('extension.commandRunnerTestReCreate', () => { commandrunner_commands.test_recreate_command_method(context); });
+    let commandrunner_parseonly_command = vscode.commands.registerCommand('extension.commandRunnerParseOnly', () => { commandrunner_commands.parseonly_command_method(context, command_runner_statusbar_item); });
+    let commandrunner_full_command = vscode.commands.registerCommand('extension.commandRunnerFullCommand', () => { commandrunner_commands.full_command_method(context, command_runner_statusbar_item); });
 
     let enable_disable_live_command = vscode.commands.registerCommand('extension.toggleLive', () => {
         live_update = !live_update;
@@ -266,6 +161,7 @@ export function activate(context: vscode.ExtensionContext) {
             }
         }
     });
+
 
     let go_to_command = vscode.commands.registerCommand('extension.revealTestCommand', () => 
     {
@@ -326,6 +222,7 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.executeCommand('workbench.files.action.showActiveFileInExplorer');
     });
 
+    context.subscriptions.push(create_python_parser_command);
     context.subscriptions.push(trigger_clear_command);
     context.subscriptions.push(trigger_update_command);
     context.subscriptions.push(enable_disable_live_command);
@@ -335,112 +232,16 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(commandrunner_parseonly_command);
     context.subscriptions.push(commandrunner_full_command);
     context.subscriptions.push(commandrunner_test_create_command);
+    context.subscriptions.push(commandrunner_test_recreate_command);
     context.subscriptions.push(run_rulerunner_compile_command);
     context.subscriptions.push(rule_runner_create_input_command);
     context.subscriptions.push(set_commandrunner_verbose_command);
+    context.subscriptions.push(awk_provider);
+    context.subscriptions.push(yaml_rule_provider);
+    context.subscriptions.push(create_indeni_rule);
 }
 
-function command_runner__test_create_command_method(context : vscode.ExtensionContext) {
-    let editor = vscode.window.activeTextEditor;
-    if (editor !== undefined)
-    {
-        let script = new SplitScript();
-        let editor = vscode.window.activeTextEditor;
-        if (editor === undefined) {
-            return;
-        }
 
-        if (script.load(editor.document.fileName, undefined))
-        {
-            if (script.is_valid_script)
-            {
-                script.command_runner_test_create(context);
-            }
-        }
-    }
-}
-
-function commandrunner_test_command_method(context : vscode.ExtensionContext) {
-    var editor = vscode.window.activeTextEditor;
-    if (editor !== undefined)
-    {
-        let script = new SplitScript();
-        let editor = vscode.window.activeTextEditor;
-        if (editor === undefined) {
-            return;
-        }
-
-        if (script.load(editor.document.fileName, undefined))
-        {
-            if (script.is_valid_script)
-            {
-                script.command_runner_test(context);
-            }
-        }
-    }
-}
-
-function command_runner_full_command_method(context : vscode.ExtensionContext) {
-    var editor = vscode.window.activeTextEditor;
-    if (editor !== undefined)
-    {
-        let script = new SplitScript();
-        let editor = vscode.window.activeTextEditor;
-        if (editor === undefined) {
-            return;
-        }
-
-        if (script.load(editor.document.fileName, undefined))
-        {
-            
-            if (script.is_valid_script) {
-                command_runner_statusbar_item.text = 'Full command: Running';
-                command_runner_statusbar_item.show();
-                script.command_runner_full_command(context).then((result) => {
-                    command_runner_statusbar_item.text = 'Full command: Done';
-                }).catch((error) => {
-                    command_runner_statusbar_item.text = 'Full command: Done with error';
-                });
-            } else {
-                vscode.window.showErrorMessage('Script is not valid');
-            }
-        }
-        else {
-            vscode.window.showErrorMessage('Unable to load script ');
-        }
-    }
-}
-
-function commandrunner_parseonly_command_method(context : vscode.ExtensionContext) {
-    var editor = vscode.window.activeTextEditor;
-    if (editor !== undefined)
-    {
-        let script = new SplitScript();
-        let editor = vscode.window.activeTextEditor;
-        if (editor === undefined) {
-            return;
-        }
-
-        if (script.load(editor.document.fileName, undefined))
-        {
-            if (script.is_valid_script)
-            {
-                command_runner_statusbar_item.text = 'Parse only: Running';
-                command_runner_statusbar_item.show();
-                script.command_runner_parse(context, script.script_test_folder).then((value) => {
-                    command_runner_statusbar_item.text = 'Parse only: Done';
-                }).catch((error) => {
-                    command_runner_statusbar_item.text = 'Parse only: Done with error';
-                });
-            } else {
-                vscode.window.showErrorMessage('Script is not valid');
-            }
-        }
-        else {
-            vscode.window.showErrorMessage('Unable to load script ');
-        }
-    }
-}
 
 function find_test_root(filepath : string, level : number = 0) : string | undefined {
     let test_json = path.join(filepath, 'test.json');

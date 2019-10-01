@@ -18,7 +18,7 @@ export class RuleInputBuilder {
                 output_data.push(this.get_indent(1) + 'device-a:');
                 output_data.push(this.get_indent(2) + 'metrics:');
                 for (let res of json['result']) {
-                    this.push_metric(output_data, res);                   
+                    this.push_metric(output_data, res);
                 }
         
                 resolve(output_data.join('\n'));

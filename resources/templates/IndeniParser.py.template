@@ -1,0 +1,33 @@
+from parser_service.public import helper_methods
+from parser_service.public.base_parser import BaseParser
+
+
+class $parser_name(BaseParser):
+    def parse(self, raw_data: str, dynamic_var: dict):
+        
+        # Step 1 : Data Extraction
+        # Convert raw_data to object using helper_methods:
+        # parse_data_as_json - convert json to object
+        # parse_data_as_xml - convert xml to object
+        # parse_data_as_list - convert raw data using textfsm to table
+        # parse_data_as_object - convert raw data using textfsm to object
+        
+        # Step 2 : Data Processing
+
+        # Step 3 : Data Reporting
+        # Report the data using the reporting methods:
+        # self.write_tag
+        # self.write_dynamic_variable
+        # self.write_double_metric
+        # self.write_complex_metric_string
+        # self.write_complex_metric_object_array
+
+
+
+        # The method must return self.output
+        return self.output
+
+
+
+# Test your code Here
+# helper_methods.print_list($parser_name().parse_file("raw_data_path",{}))

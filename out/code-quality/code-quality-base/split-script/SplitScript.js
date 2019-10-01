@@ -14,7 +14,6 @@ const SplitScriptAwkSection_1 = require("./sections/SplitScriptAwkSection");
 const SplitScriptXmlSection_1 = require("./sections/SplitScriptXmlSection");
 const SplitScriptJsonSection_1 = require("./sections/SplitScriptJsonSection");
 const path_1 = require("path");
-const CommandRunner_1 = require("../../../command-runner/CommandRunner");
 const path = require("path");
 const fs = require("fs");
 const CommandRunnerResultView_1 = require("../../../gui/CommandRunnerResultView");
@@ -165,11 +164,32 @@ class SplitScript {
         }
         return SplitScriptTestCases_1.SplitScriptTestCases.get(test_file);
     }
+    command_runner_test_recreate(context) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let command_runner = new CommandRunnerAsync_1.CommandRunnerAsync();
+            try {
+                let result = yield command_runner.ReCreateTestCase(this);
+                let fail = true;
+                if (result !== undefined) {
+                    if (result.success) {
+                        vscode.window.showInformationMessage(`Test case '${result.test_case}' recreated for script '${result.script_name}'`);
+                        fail = false;
+                    }
+                }
+                if (fail) {
+                    vscode.window.showErrorMessage('Test case creation failed');
+                }
+            }
+            catch (e) {
+                vscode.window.showErrorMessage(e);
+            }
+        });
+    }
     command_runner_test_create(context) {
         return __awaiter(this, void 0, void 0, function* () {
-            let command_runner = new CommandRunner_1.CommandRunner();
+            let command_runner = new CommandRunnerAsync_1.CommandRunnerAsync();
             try {
-                let result = yield command_runner.CreateTestCaseAsync(this);
+                let result = yield command_runner.CreateTestCase(this);
                 let fail = true;
                 if (result !== undefined) {
                     if (result.success) {
@@ -246,11 +266,11 @@ class SplitScript {
                 if (this.header_section === undefined) {
                     return reject('No header section defined');
                 }
-                vscode.window.showInputBox({ placeHolder: 'IP Address' }).then((value) => {
+                let command_runner = new CommandRunnerAsync_1.CommandRunnerAsync();
+                vscode.window.showInputBox({ placeHolder: 'IP Address', ignoreFocusOut: true, prompt: 'Device IP', validateInput: command_runner.validate_ip_address }).then((value) => {
                     if (value === undefined || this.header_section === undefined) {
                         return reject('No ip address entered');
                     }
-                    let command_runner = new CommandRunnerAsync_1.CommandRunnerAsync();
                     let view = new CommandRunnerResultView_1.CommandRunnerResultView(context.extensionPath);
                     command_runner.RunFullCommand(this.header_section.filename, value).then((result) => {
                         view.show_parser_result(result);
@@ -259,12 +279,6 @@ class SplitScript {
                         view.show_error_result(error);
                         reject();
                     });
-                    /*command_runner.RunFullCommand(this.header_section.filename, value, (result) => {
-                    let view = new CommandRunnerResultView(context.extensionPath);
-                    view.show_parser_result(result);
-                    status_bar.text = 'Command-runner full-command: Done';
-                    return;
-                });*/
                 });
             });
         });

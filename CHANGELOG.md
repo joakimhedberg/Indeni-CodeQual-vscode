@@ -3,6 +3,14 @@
 ## [Upcoming release]
 Various bugfixes reported @ github
 
+## [0.3.3]
+Moved CommandRunner over to an async class
+Split create/recreate test cases into two separate commands
+New command: Indeni: Create new rule
+    Creates a new rule with all available parameters
+New command: Indeni: Create python parser class
+    Creates a new python parser based on the indeni template
+
 ## [0.3.2]
 Changed github repository path
 

@@ -26,7 +26,6 @@ export class CommandRunnerResultView {
             this.panel.onDidDispose((e : void) => { this.panel = undefined; });
         }
 
-
         if (this.panel !== undefined) {
             if (!this.panel.visible) {
                 this.panel.reveal();
