@@ -12,6 +12,21 @@ var raw_output_div;
 var parse_result = undefined;
 var debug_lines_div;
 
+var remote_content_button;
+
+
+function remote_content_clicked() {
+    if (parse_result === undefined) {
+        console.log('No parse result');
+        return;
+    }
+    vscode.postMessage(
+        { 
+            command: 'show_data',
+            data: parse_result.remote_contents
+        });
+}
+
 window.onload = function() {
     main_div = document.createElement('div');
     main_div.id = 'main_div';
@@ -37,6 +52,13 @@ window.onload = function() {
     
     main_div.appendChild(parser_header);
     main_div.appendChild(metrics_table);
+    remote_content_button = document.createElement('input');
+    remote_content_button.type = 'button';  
+    remote_content_button.style = 'width: 200px; height: 40px';
+    remote_content_button.value = 'Show remote data';
+    remote_content_button.style.visibility = 'hidden';
+    remote_content_button.onclick = function() { remote_content_clicked(); }
+    main_div.appendChild(remote_content_button);
     main_div.appendChild(debug_lines_div);
 
     var header = metrics_table.createTHead();
@@ -56,7 +78,6 @@ window.onload = function() {
     header_row.appendChild(th_name);
     header_row.appendChild(th_tags);
     header_row.appendChild(th_value);
-
     metrics_table.createTBody();
     window.addEventListener('message', post_parse_listener);
 }
@@ -161,6 +182,8 @@ function load_result() {
             
             debug_lines_pre.innerHTML = parse_result.debug_lines.join('\n');
         };
+
+        remote_content_button.style.visibility = (parse_result.remote_contents !== undefined) && (parse_result.remote_contents.length > 0)? 'visible': 'hidden';
     }
 }
 

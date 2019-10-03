@@ -16,6 +16,20 @@ class CommandRunnerResultView {
         if (this.panel === undefined) {
             this.panel = vscode.window.createWebviewPanel('commandRunnerResult', title, vscode.ViewColumn.Beside, { enableScripts: true, retainContextWhenHidden: true });
             this.panel.onDidDispose((e) => { this.panel = undefined; });
+            this.panel.webview.onDidReceiveMessage(message => {
+                console.log(message);
+                switch (message.command) {
+                    case 'show_data':
+                        if (message.data) {
+                            for (let data_string of message.data) {
+                                vscode.workspace.openTextDocument({ content: data_string }).then((onfulfilled) => {
+                                    vscode.window.showTextDocument(onfulfilled);
+                                });
+                            }
+                        }
+                        break;
+                }
+            });
         }
         if (this.panel !== undefined) {
             if (!this.panel.visible) {

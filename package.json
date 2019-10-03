@@ -2,7 +2,7 @@
     "name": "indeni-codequal",
     "displayName": "indeni_codequal",
     "description": "Indeni code quality checker",
-    "version": "0.3.4",
+    "version": "0.3.5",
     "publisher": "hedberg-jonsson-parker",
     "engines": {
         "vscode": "^1.29.0"
@@ -146,6 +146,12 @@
                     "default": "",
                     "description": "Command runner path(bash script or .bat file)"
                 },
+                "indeni.commandRunnerIPHistory": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "indeni.ruleRunnerPath": {
                     "type": "string",
                     "default": "",
@@ -172,7 +178,7 @@
                     "items": {
                         "type": "string"
                     },
-                    "description": "Command-runner inject tag key-value-pair. Define by 'key' = 'value'"
+                    "description": "Command-runner inject tag key-value-pair. Define by key = value"
                 }
             }
         }

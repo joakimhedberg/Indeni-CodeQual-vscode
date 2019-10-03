@@ -63,14 +63,14 @@ class CommandRunnerAsync {
         }
         let result = [];
         for (let line of this.commandrunner_inject_tags) {
-            console.log('Parsing line: ' + line);
-            let key_value = line.split('=', 2);
-            console.log(key_value);
-            if (key_value.length === 2) {
-                console.log('Reached here');
-                let item = `""${key_value[0].trim()}""=>""${key_value[1].trim()}""`;
-                result.push(item);
+            let equals_index = line.indexOf('=');
+            if (equals_index < 0) {
+                continue;
             }
+            let key = line.substring(0, line.indexOf('=') - 1);
+            let value = line.substring(line.indexOf('=') + 1);
+            let item = `""${key.trim()}""=>""${value.trim()}""`;
+            result.push(item);
         }
         if (result.length > 0) {
             return '--inject-tags "' + result.join(' ') + '" ';
@@ -85,7 +85,7 @@ class CommandRunnerAsync {
     RunFullCommand(input_filename, ip_address) {
         return __awaiter(this, void 0, void 0, function* () {
             return new Promise((resolve, reject) => {
-                let exec_string = ` full-command ${this.verbose}${this.inject_tags()}--ssh ${this.commandrunner_user},${this.commandrunner_password} --basic-authentication ${this.commandrunner_user},${this.commandrunner_password} ${this.escape_filename(input_filename)} ${ip_address}`;
+                let exec_string = ` full-command ${this.verbose}${this.inject_tags()}--ssh ${this.commandrunner_user},${this.commandrunner_password} --basic-authentication ${this.commandrunner_user},${this.commandrunner_password} --record ${this.escape_filename(input_filename)} ${ip_address}`;
                 this.Run(exec_string).then((value) => {
                     return resolve(new CommandRunnerParseOnlyResult_1.CommandRunnerParseOnlyResult(input_filename, ip_address, value));
                 }).catch((error) => {
@@ -127,8 +127,13 @@ class CommandRunnerAsync {
         }
         return null;
     }
+    /**
+     * @description Validates an ip-address
+     * @param value IP address to validate
+     * @returns null if the ip address is valid, otherwise string error message
+     */
     validate_ip_address(value) {
-        if (/^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$/.test(value)) {
+        if (/^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\s{0,}\/\s{0,}[\w\s\-]+$/.test(value)) {
             return null;
         }
         return 'Need a valid ip address';
@@ -213,7 +218,7 @@ class CommandRunnerAsync {
                     return reject('No valid command-runner path');
                 }
                 command = this.escape_filename(this.commandrunner_uri.fsPath) + ' ' + command;
-                child.exec(command, (error, stdout, stderr) => {
+                child.exec(command, { maxBuffer: 1024 * 1024 * 1024 }, (error, stdout, stderr) => {
                     if (error !== null) {
                         return reject('Command-runner failed: Command ' + command + ' -- Error: ' + error.message);
                     }

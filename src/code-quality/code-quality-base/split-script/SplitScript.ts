@@ -274,15 +274,103 @@ export class SplitScript {
         });
     }
 
+    private parse_ip(ip_string : string) : string[] {
+        if (ip_string.indexOf('/') > 0) {
+            return [ip_string.slice(0, ip_string.indexOf('/')).trim(), ip_string.slice(ip_string.indexOf('/') + 1).trim()];
+        }
+        
+        return [ip_string, ''];
+    }
+
+    private async get_ip_address(context : vscode.ExtensionContext) {
+        let ip_history : string[] = vscode.workspace.getConfiguration().get('indeni.commandRunnerIPHistory', []);
+
+        let crunner = new CommandRunnerAsync();
+        let items = [];
+        for (let ip of ip_history) {
+            if (crunner.validate_ip_address(ip) !== null) {
+                continue;
+            }
+
+            let ip_item = this.parse_ip(ip);
+
+
+            items.unshift({ label: ip_item[0], description: ip_item[1] });
+        }
+        
+        items.push( { label: '<new>' });
+
+        let ip_address_result = '';
+
+        let ip = await vscode.window.showQuickPick(items, { canPickMany: false, ignoreFocusOut: true, placeHolder: 'Select ip' });
+        if (ip === undefined) 
+        {
+            return Promise.reject();
+        }
+        else if (ip.label === '<new>') {
+            let input = await vscode.window.showInputBox({ placeHolder: 'IP Address / Server name', ignoreFocusOut: true, prompt: 'Device IP / Server name', validateInput: crunner.validate_ip_address });
+            if (input !== undefined) {
+                let ip = this.parse_ip(input);
+                ip_address_result = ip[0];
+
+                if (crunner.validate_ip_address(ip.join('/')) === null) {
+                    let ip_string = ip.join('/');
+                    if (ip_history.indexOf(ip_string) > 0) {
+                        ip_history = ip_history.splice(ip_history.indexOf(ip_string));
+                    }
+                    ip_history.push(ip_string);
+                    if (ip_history.length > 20) {
+                        ip_history = ip_history.slice(0, 20);
+                    }
+                    vscode.workspace.getConfiguration().update('indeni.commandRunnerIPHistory', ip_history, true).then((onfulfilled) => { }, (onrejected) => { console.log(onrejected); });
+                }
+            } else {
+                return Promise.reject();
+            }
+        }
+        else {
+            ip_address_result = ip.label;
+        }
+
+        if (crunner.validate_ip_address(ip_address_result + '/Workaround') === null) {
+            return Promise.resolve(ip_address_result);
+        }
+        
+        return Promise.reject('No valid ip address entered: ' + ip_address_result);
+    }
+
     public async command_runner_full_command(context : vscode.ExtensionContext) {
         return new Promise<void>((accept, reject) => {
-
             if (this.header_section === undefined) {
                 return reject('No header section defined');
             }
 
             let command_runner = new CommandRunnerAsync();
-            vscode.window.showInputBox({ placeHolder: 'IP Address', ignoreFocusOut: true, prompt: 'Device IP', validateInput: command_runner.validate_ip_address }).then((value : string | undefined) => {
+            let view = new CommandRunnerResultView(context.extensionPath);
+            this.get_ip_address(context).then((ip) =>
+            {
+                if (this.header_section === undefined) {
+                    return reject('No header section');
+                }
+                
+                command_runner.RunFullCommand(this.header_section.filename, ip).then((result) => {
+                    view.show_parser_result(result);
+                    accept();
+                }).catch((error) => {
+                    if (error) {
+                        view.show_error_result(error);
+                    }
+                    reject();
+                });
+            }).catch((err) => 
+            {
+                if (err) {
+                    view.show_error_result(err);
+                }
+                reject();
+            });
+            
+            /*vscode.window.showInputBox({ placeHolder: 'IP Address', ignoreFocusOut: true, prompt: 'Device IP', validateInput: command_runner.validate_ip_address }).then((value : string | undefined) => {
                 if (value === undefined || this.header_section === undefined) {
                     return reject('No ip address entered');
                 }
@@ -294,7 +382,7 @@ export class SplitScript {
                     view.show_error_result(error);
                     reject();
                 });
-            });
+            });*/
         });
     }
 

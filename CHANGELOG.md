@@ -3,6 +3,11 @@
 ## [Upcoming release]
 Various bugfixes reported @ github
 
+## [0.3.5]
+Minor fix in configuration
+Added IP address in command-runner full-command
+Added functionality to open the output data after successful full-command
+
 ## [0.3.4]
 Added debug lines as output to command-runner result view
 

@@ -42,10 +42,10 @@ export function set_verbose() {
             if (value !== undefined) {
                 switch (value.label) {
                     case 'On':
-                        verbose.update('indeni.commandRunnerVerbose', true);
+                        verbose.update('indeni.commandRunnerVerbose', true, true);
                         break;
                     case 'Off':
-                        verbose.update('indeni.commandRunnerVerbose', false);
+                        verbose.update('indeni.commandRunnerVerbose', false, true);
                         break;
                 }
             }
