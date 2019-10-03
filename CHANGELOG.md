@@ -3,6 +3,9 @@
 ## [Upcoming release]
 Various bugfixes reported @ github
 
+## [0.3.6]
+Minor improvement in IP history for command-runner full-command
+
 ## [0.3.5]
 Minor fix in configuration
 Added IP address in command-runner full-command
